@@ -16,9 +16,29 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path , include
+from rest_framework_simplejwt.views import(
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/", include("core.urls")),
+    path(
+        "api/auth/",
+        include("accounts.urls"),
+    ),
+
+    path(
+        "api/auth/token",
+        TokenObtainPairView.as_view(), 
+        # built-in Django view from the Simple JWT library that processes a user's username and password via a POST request and returns two JSON Web Tokens: an Access Token (for authorizing API requests) and a Refresh Token (for generating new access tokens).
+        name = "token_obtain_pair",
+    ),
+    path(
+        "api/auth/token/refresh/",
+        TokenRefreshView.as_view(),
+        name = "token_refresh",
+    ),
 ]
