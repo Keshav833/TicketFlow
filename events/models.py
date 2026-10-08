@@ -1,0 +1,101 @@
+from django.db import models
+
+# Create your models here.
+
+class Venue(models.Model):
+    name = models.CharField(max_length=200)
+    address = models.TextField()
+    city = models.CharField(max_length=100)
+
+    def __str(self):
+        return self.name
+
+class Seat(models.Model):
+    venue = models.ForeignKey(
+        Venue,
+        on_delete=models.CASCADE,
+        related_name="seats",
+    )
+
+    row = models.CharField(max_length=10)
+    number = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["venue", "row", "number"],
+                name="unique_seat_per_venue",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.row}{self.number}"
+
+class Event(models.Model):
+    name = models.CharField(max_length=200)
+
+    venue = models.ForeignKey(
+        Venue,
+        on_delete=models.PROTECT,
+        related_name="events",
+    )
+
+    description = models.TextField(blank=True)
+
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class TicketTier(models.Model):
+    event = models.ForeignKey(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="ticket_tiers",
+    )
+
+    name = models.CharField(max_length=100)
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    def __str__(self):
+        return f"{self.event.name} - {self.name}"
+
+
+
+class EventSeat(models.Model):
+    event = models.ForeignKey(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="event_seats",
+    )
+
+    seat = models.ForeignKey(
+        Seat,
+        on_delete=models.PROTECT,
+        related_name="event_seats",
+    )
+
+    ticket_tier = models.ForeignKey(
+        TicketTier,
+        on_delete=models.PROTECT,
+        related_name="event_seats",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["event", "seat"],
+                name="unique_seat_per_event",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.event.name} - {self.seat}"
