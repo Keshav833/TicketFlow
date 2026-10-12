@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'users',
     'events',
     "accounts",
+    "bookings",
 ]
 
 AUTH_USER_MODEL = "users.User"
