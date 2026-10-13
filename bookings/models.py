@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from events.models import EventSeat
+from django.db.models import Q #add filter feature to django with OR ,NOT
 
 class Booking(models.Model):
 
@@ -17,6 +18,14 @@ class Booking(models.Model):
         on_delete=models.PROTECT,#prevents deleting a user who has booking records.
         related_name="bookings",
     )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(total_amount__gte=0),
+                name="booking_total_nonnegative",
+            ),
+    ]
 
     status = models.CharField(
         max_length=20,
@@ -44,6 +53,14 @@ class BookingItem(models.Model):
         on_delete=models.PROTECT,
         related_name="items",
     )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(price__gte=0),
+                name="booking_item_price_nonnegative",
+            ),
+    ]
 
     event_seat = models.ForeignKey(
         EventSeat,
@@ -110,6 +127,14 @@ class Payment(models.Model):
         SUCCEEDED = "succeeded", "Succeeded"
         FAILED = "failed", "Failed"
         REFUNDED = "refunded", "Refunded"
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(amount__gte=0),
+                name="payment_amount_nonnegative",
+            ),
+    ]
 
     booking = models.ForeignKey(
         Booking,

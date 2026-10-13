@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.db.models import Q
 # Create your models here.
 
 class Venue(models.Model):
@@ -22,9 +22,18 @@ class Seat(models.Model):
 
     class Meta:
         constraints = [
+            #Ensures that no two seats can have the same row and number within the same venue 
+            # (prevents duplicate seating).
             models.UniqueConstraint(
                 fields=["venue", "row", "number"],
                 name="unique_seat_per_venue",
+            ),
+
+            # Ensures that every seat number saved in the database is a positive integer 
+            # starting from 1 or higher.
+            models.CheckConstraint(
+                condition= Q(number__gte = 1),
+                name = "seat_number_at_least_one",
             )
         ]
 
@@ -39,6 +48,14 @@ class Event(models.Model):
         on_delete=models.PROTECT,
         related_name="events",
     )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint( #This makes PostgreSQL reject events whose end time is not later than their start time.
+                condition=Q(ends_at__gt=models.F("starts_at")),
+                name="event_end_after_start",
+            ),
+    ]
 
     description = models.TextField(blank=True)
 
@@ -58,6 +75,14 @@ class TicketTier(models.Model):
         on_delete=models.CASCADE,
         related_name="ticket_tiers",
     )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(price__gte=0),
+                name="ticket_price_nonnegative",
+            ),
+    ]
 
     name = models.CharField(max_length=100)
     price = models.DecimalField(
