@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from .models import Event, EventSeat, Seat, Venue
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
-
+from .filters import EventFilter
 
 from .serializers import (
     EventSeatSerializer,
@@ -28,8 +28,9 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
         filters.OrderingFilter,
     ]
 
+
     # filterset_fields enables filtering by venue ID
-    filterset_fields = ["venue"]
+    filterset_class = EventFilter
 
     # enables text search across event names, descriptions, and venue names.
     search_fields = [
