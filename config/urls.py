@@ -30,6 +30,7 @@ urlpatterns = [
         "api/auth/",
         include("accounts.urls"),
     ),
+    path("api/bookings/", include("bookings.urls")),
 
     path(
         "api/auth/token",
