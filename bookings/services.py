@@ -97,3 +97,116 @@ def create_seat_hold(*, user, event_id, event_seat_ids):
     ])
 
     return booking
+
+@transaction.atomic
+def expire_stale_holds():
+    """Expire overdue holds and their still-held bookings."""
+    now = timezone.now()
+
+    expired_holds = list(
+        Hold.objects
+        .select_for_update()
+        .filter(
+            status="active",
+            expires_at__lte=now,
+        )
+        .order_by("id")
+    )
+
+    if not expired_holds:
+        return 0
+
+    hold_ids = [hold.id for hold in expired_holds]
+    booking_ids = {
+        hold.booking_id for hold in expired_holds
+    }
+
+    Hold.objects.filter(
+        id__in=hold_ids,
+        status="active",
+    ).update(status="expired")
+
+    Booking.objects.filter(
+        id__in=booking_ids,
+        status="held",
+    ).update(status="expired")
+
+    return len(hold_ids)
+
+
+
+
+def start_booking_payment(*, user, booking_id):
+    error_message = None
+    booking = None
+
+    with transaction.atomic():
+        booking = (
+            Booking.objects
+            .select_for_update()
+            .filter(id=booking_id, user=user)
+            .first()
+        )
+
+        if booking is None:
+            error_message = "Booking not found."
+
+        elif booking.status != Booking.Status.HELD:
+            error_message = "This booking cannot enter payment."
+
+        else:
+            now = timezone.now()
+
+            holds = list(
+                Hold.objects
+                .select_for_update()
+                .filter(booking=booking)
+                .order_by("id")
+            )
+
+            booking_seat_ids = set(
+                booking.items.values_list(
+                    "event_seat_id",
+                    flat=True,
+                )
+            )
+
+            valid_seat_ids = {
+                hold.event_seat_id
+                for hold in holds
+                if (
+                    hold.status == Hold.Status.ACTIVE
+                    and hold.expires_at > now
+                )
+            }
+
+            if (
+                not booking_seat_ids
+                or valid_seat_ids != booking_seat_ids
+            ):
+                Hold.objects.filter(
+                    booking=booking,
+                    status=Hold.Status.ACTIVE,
+                    expires_at__lte=now,
+                ).update(status=Hold.Status.EXPIRED)
+
+                booking.status = Booking.Status.EXPIRED
+                booking.save(
+                    update_fields=["status", "updated_at"]
+                )
+
+                error_message = (
+                    "Booking hold expired. Please create a new booking."
+                )
+
+            else:
+                booking.status = Booking.Status.PAYMENT_PENDING
+                booking.save(
+                    update_fields=["status", "updated_at"]
+                )
+
+    # The transaction has committed before raising the error.
+    if error_message:
+        raise ValidationError(error_message)
+
+    return booking

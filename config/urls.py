@@ -33,7 +33,7 @@ urlpatterns = [
     path("api/bookings/", include("bookings.urls")),
 
     path(
-        "api/auth/token",
+        "api/auth/token/",
         TokenObtainPairView.as_view(), 
         # built-in Django view from the Simple JWT library that processes a user's username and password via a POST request and returns two JSON Web Tokens: an Access Token (for authorizing API requests) and a Refresh Token (for generating new access tokens).
         name = "token_obtain_pair",
