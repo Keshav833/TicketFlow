@@ -88,6 +88,15 @@ class Hold(models.Model):
         CONVERTED = "converted", "Converted"
         CANCELLED = "cancelled", "Cancelled"
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["event_seat"],
+                condition=models.Q(status="active"),
+                name="unique_active_hold_per_event_seat",
+            ),
+    ]
+
     event_seat = models.ForeignKey(
         EventSeat,
         on_delete=models.PROTECT,

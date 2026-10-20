@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from .models import Booking, BookingItem
 
+from events.models import EventSeat
 
 # Converts each purchased seat into readable JSON
 class BookingItemSerializer(serializers.ModelSerializer):
@@ -46,3 +47,43 @@ class BookingSerializer(serializers.ModelSerializer):
             "items",
         ]
         read_only_fields = fields
+
+from rest_framework import serializers
+
+from events.models import EventSeat
+
+
+class CreateHoldSerializer(serializers.Serializer):
+    event_id = serializers.IntegerField(min_value=1)
+
+    event_seat_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        min_length=1,
+        max_length=10,
+    )
+
+    def validate_event_seat_ids(self, value):
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError(
+                "Duplicate seat IDs are not allowed."
+            )
+
+        return value
+
+    def validate(self, attrs):
+        event_id = attrs["event_id"]
+        seat_ids = attrs["event_seat_ids"]
+
+        seats = EventSeat.objects.filter(
+            event_id=event_id,
+            id__in=seat_ids,
+        )
+
+        if seats.count() != len(seat_ids):
+            raise serializers.ValidationError({
+                "event_seat_ids": (
+                    "One or more seats do not belong to this event."
+                )
+            })
+
+        return attrs

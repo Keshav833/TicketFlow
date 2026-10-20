@@ -1,16 +1,21 @@
 from django.urls import path
 
-from .views import BookingDetailView, BookingListView
-
+from .views import (
+    BookingDetailView,
+    BookingListView,
+    CreateHoldView,
+)
 
 urlpatterns = [
-    path("", BookingListView.as_view(), name="booking-list"), 
-    #List the authenticated user's bookings
-
+    path("", BookingListView.as_view(), name="booking-list"),
+    path(
+        "holds/",
+        CreateHoldView.as_view(),
+        name="create-hold",
+    ),
     path(
         "<int:pk>/",
         BookingDetailView.as_view(),
         name="booking-detail",
     ),
-    # Retrieve one of that user's bookings
 ]
