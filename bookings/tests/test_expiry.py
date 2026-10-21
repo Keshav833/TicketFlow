@@ -7,6 +7,8 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from bookings.services import start_booking_payment
+from unittest.mock import patch
+from django.db import transaction
 
 from events.models import (
     Venue,
@@ -196,3 +198,43 @@ class ExpireStaleHoldsTests(TestCase):
             booking.status,
             Booking.Status.HELD,
         )
+
+    def test_failed_booking_creation_rolls_back_records(self):
+        booking_count = Booking.objects.count()
+        item_count = BookingItem.objects.count()
+        hold_count = Hold.objects.count()
+
+        with patch(
+            "bookings.services.BookingItem.objects.bulk_create",
+            side_effect=RuntimeError("Simulated database failure"),
+        ):
+            with self.assertRaises(RuntimeError):
+                from bookings.services import create_seat_hold
+
+                create_seat_hold(
+                    user=self.user,
+                    event_id=self.event.id,
+                    event_seat_ids=[self.event_seat.id],
+                )
+
+        self.assertEqual(Booking.objects.count(), booking_count)
+        self.assertEqual(BookingItem.objects.count(), item_count)
+        self.assertEqual(Hold.objects.count(), hold_count)
+
+    
+    def test_database_rejects_second_active_hold_for_same_seat(self):
+        from django.db import IntegrityError
+
+        booking, hold = self.create_booking_and_hold(
+            timezone.now() + timedelta(minutes=5)
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Hold.objects.create(
+                    event_seat=self.event_seat,
+                    user=self.user,
+                    booking=booking,
+                    status=Hold.Status.ACTIVE,
+                    expires_at=timezone.now() + timedelta(minutes=10),
+                )
