@@ -131,11 +131,14 @@ class Hold(models.Model):
 
 class Payment(models.Model):
 
+    
     class Status(models.TextChoices):
+        CREATING = "creating", "Creating"
         PENDING = "pending", "Pending"
         SUCCEEDED = "succeeded", "Succeeded"
         FAILED = "failed", "Failed"
         REFUNDED = "refunded", "Refunded"
+
 
     class Meta:
         constraints = [
@@ -159,6 +162,12 @@ class Payment(models.Model):
     provider_payment_id = models.CharField(
         max_length=255,
         blank=True,
+    )
+
+    provider_order_id = models.CharField(
+    max_length=100,
+    blank=True,
+    db_index=True,
     )
 
     #The unique idempotency_key gives us a database-level guarantee that the same key cannot be recorded twice.
