@@ -8,8 +8,9 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from bookings.models import Booking, BookingItem, Hold, Payment
 from bookings.payment_services import create_razorpay_order
+from bookings.payment_services import verify_razorpay_payment
+from bookings.models import Booking, BookingItem, Hold, Payment
 from events.models import Venue, Event, Seat, TicketTier, EventSeat
 
 
@@ -238,3 +239,190 @@ class PaymentRetryTests(TestCase):
             mock_client.order.create.call_count,
             calls_before_retry,
         )
+
+
+        
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_valid_captured_payment_confirms_booking_and_converts_hold(
+        self, mock_get_client
+    ):
+        booking, payment = self.create_pending_payment()
+
+        mock_client = mock_get_client.return_value
+        mock_client.payment.fetch.return_value = {
+            "id": "pay_test_123",
+            "order_id": payment.provider_order_id,
+            "amount": 49900,
+            "currency": "INR",
+            "status": "captured",
+        }
+
+        result = verify_razorpay_payment(
+            user=self.user,
+            booking_id=booking.id,
+            razorpay_order_id=payment.provider_order_id,
+            razorpay_payment_id="pay_test_123",
+            razorpay_signature="valid_test_signature",
+        )
+
+        mock_client.utility.verify_payment_signature.assert_called_once_with({
+            "razorpay_order_id": payment.provider_order_id,
+            "razorpay_payment_id": "pay_test_123",
+            "razorpay_signature": "valid_test_signature",
+        })
+
+        booking.refresh_from_db()
+        payment.refresh_from_db()
+
+        self.assertEqual(payment.status, Payment.Status.SUCCEEDED)
+        self.assertEqual(payment.provider_payment_id, "pay_test_123")
+        self.assertEqual(booking.status, Booking.Status.CONFIRMED)
+        self.assertEqual(
+            booking.holds.get().status,
+            Hold.Status.CONVERTED,
+        )
+        self.assertEqual(result["booking_status"], Booking.Status.CONFIRMED)
+
+
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_invalid_signature_does_not_confirm_booking(self, mock_get_client):
+        booking, payment = self.create_pending_payment()
+
+        mock_client = mock_get_client.return_value
+
+        import razorpay
+        mock_client.utility.verify_payment_signature.side_effect = (
+            razorpay.errors.SignatureVerificationError(
+                "Invalid signature",
+                "invalid_signature",
+            )
+        )
+
+        with self.assertRaises(ValidationError):
+            verify_razorpay_payment(
+                user=self.user,
+                booking_id=booking.id,
+                razorpay_order_id=payment.provider_order_id,
+                razorpay_payment_id="pay_fake_123",
+                razorpay_signature="invalid_signature",
+            )
+
+        booking.refresh_from_db()
+        payment.refresh_from_db()
+
+        self.assertEqual(booking.status, Booking.Status.PAYMENT_PENDING)
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+        self.assertEqual(payment.provider_payment_id, "")
+
+        mock_client.payment.fetch.assert_not_called()
+
+
+
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_amount_mismatch_does_not_confirm_booking(self, mock_get_client):
+        booking, payment = self.create_pending_payment()
+
+        mock_client = mock_get_client.return_value
+        mock_client.payment.fetch.return_value = {
+            "id": "pay_test_mismatch",
+            "order_id": payment.provider_order_id,
+            "amount": 10000,
+            "currency": "INR",
+            "status": "captured",
+        }
+
+        with self.assertRaises(ValidationError):
+            verify_razorpay_payment(
+                user=self.user,
+                booking_id=booking.id,
+                razorpay_order_id=payment.provider_order_id,
+                razorpay_payment_id="pay_test_mismatch",
+                razorpay_signature="valid_test_signature",
+            )
+
+        booking.refresh_from_db()
+        payment.refresh_from_db()
+
+        self.assertEqual(booking.status, Booking.Status.PAYMENT_PENDING)
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+        self.assertEqual(payment.provider_payment_id, "")
+
+
+
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_uncaptured_payment_does_not_confirm_booking(self, mock_get_client):
+        booking, payment = self.create_pending_payment()
+
+        mock_client = mock_get_client.return_value
+        mock_client.payment.fetch.return_value = {
+            "id": "pay_test_authorized",
+            "order_id": payment.provider_order_id,
+            "amount": 49900,
+            "currency": "INR",
+            "status": "authorized",
+        }
+
+        with self.assertRaises(ValidationError):
+            verify_razorpay_payment(
+                user=self.user,
+                booking_id=booking.id,
+                razorpay_order_id=payment.provider_order_id,
+                razorpay_payment_id="pay_test_authorized",
+                razorpay_signature="valid_test_signature",
+            )
+
+        booking.refresh_from_db()
+        payment.refresh_from_db()
+
+        self.assertEqual(booking.status, Booking.Status.PAYMENT_PENDING)
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+        self.assertEqual(payment.provider_payment_id, "")
+
+
+
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_repeated_verification_does_not_duplicate_state_changes(
+        self, mock_get_client
+    ):
+        booking, payment = self.create_pending_payment()
+
+        mock_client = mock_get_client.return_value
+        mock_client.payment.fetch.return_value = {
+            "id": "pay_test_duplicate",
+            "order_id": payment.provider_order_id,
+            "amount": 49900,
+            "currency": "INR",
+            "status": "captured",
+        }
+
+        kwargs = {
+            "user": self.user,
+            "booking_id": booking.id,
+            "razorpay_order_id": payment.provider_order_id,
+            "razorpay_payment_id": "pay_test_duplicate",
+            "razorpay_signature": "valid_test_signature",
+        }
+
+        first_result = verify_razorpay_payment(**kwargs)
+        second_result = verify_razorpay_payment(**kwargs)
+
+        self.assertEqual(
+            first_result["payment_status"],
+            Payment.Status.SUCCEEDED,
+        )
+        self.assertEqual(
+            second_result["detail"],
+            "Payment already verified.",
+        )
+
+        booking.refresh_from_db()
+        payment.refresh_from_db()
+
+        self.assertEqual(booking.status, Booking.Status.CONFIRMED)
+        self.assertEqual(payment.status, Payment.Status.SUCCEEDED)
+        self.assertEqual(payment.provider_payment_id, "pay_test_duplicate")
+        self.assertEqual(Payment.objects.filter(booking=booking).count(), 1)
+
+        # The second request should return early without contacting Razorpay.
+        mock_client.utility.verify_payment_signature.assert_called_once()
+        mock_client.payment.fetch.assert_called_once()
