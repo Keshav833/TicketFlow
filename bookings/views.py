@@ -5,6 +5,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny
+
+from .webhook_services import process_razorpay_webhook
 
 from .payment_services import (
       create_razorpay_order ,
@@ -127,6 +130,29 @@ class VerifyPaymentView(APIView):
                 razorpay_order_id=request.data["razorpay_order_id"],
                 razorpay_payment_id=request.data["razorpay_payment_id"],
                 razorpay_signature=request.data["razorpay_signature"],
+            )
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class RazorpayWebhookView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        signature = request.headers.get("X-Razorpay-Signature")
+        event_id = request.headers.get("X-Razorpay-Event-Id")
+
+        try:
+            result = process_razorpay_webhook(
+                payload=request.body,
+                signature=signature,
+                event_id=event_id,
             )
         except ValidationError as exc:
             return Response(
