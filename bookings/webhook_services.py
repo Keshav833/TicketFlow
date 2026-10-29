@@ -5,7 +5,7 @@ import json
 from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
-
+from bookings.services import transition_booking
 from bookings.models import Booking, Payment, Hold, ProcessedWebhookEvent
 
 
@@ -117,8 +117,11 @@ def process_razorpay_webhook(*, payload, signature, event_id):
                     ]
                 )
 
-                booking.status = Booking.Status.CONFIRMED
-                booking.save(update_fields=["status", "updated_at"])
+                                
+                transition_booking(
+                    booking=booking,
+                    new_status=Booking.Status.CONFIRMED,
+                )
 
                 booking.holds.filter(
                     status=Hold.Status.ACTIVE

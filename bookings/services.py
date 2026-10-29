@@ -10,6 +10,41 @@ from events.models import EventSeat
 from .models import Booking, BookingItem, Hold
 
 
+def transition_booking(*, booking, new_status):
+    """
+    Validate and apply an allowed booking status transition.
+    """
+    allowed_transitions = {
+        Booking.Status.HELD: {
+            Booking.Status.PAYMENT_PENDING,
+            Booking.Status.EXPIRED,
+            Booking.Status.CANCELLED,
+        },
+        Booking.Status.PAYMENT_PENDING: {
+            Booking.Status.CONFIRMED,
+            Booking.Status.EXPIRED,
+            Booking.Status.CANCELLED,
+        },
+        Booking.Status.CONFIRMED: {
+            Booking.Status.REFUNDED,
+        },
+        Booking.Status.EXPIRED: set(),
+        Booking.Status.CANCELLED: set(),
+        Booking.Status.REFUNDED: set(),
+        
+    }
+
+    if new_status not in allowed_transitions[booking.status]:
+        raise ValidationError(
+            f"Invalid booking transition: "
+            f"{booking.status} -> {new_status}"
+        )
+
+    booking.status = new_status
+    booking.save(update_fields=["status", "updated_at"])
+
+    return booking
+
 @transaction.atomic
 def create_seat_hold(*, user, event_id, event_seat_ids):
     now = timezone.now()
@@ -190,9 +225,9 @@ def start_booking_payment(*, user, booking_id):
                     expires_at__lte=now,
                 ).update(status=Hold.Status.EXPIRED)
 
-                booking.status = Booking.Status.EXPIRED
-                booking.save(
-                    update_fields=["status", "updated_at"]
+                transition_booking(
+                    booking=booking,
+                    new_status=Booking.Status.EXPIRED,
                 )
 
                 error_message = (
@@ -200,9 +235,9 @@ def start_booking_payment(*, user, booking_id):
                 )
 
             else:
-                booking.status = Booking.Status.PAYMENT_PENDING
-                booking.save(
-                    update_fields=["status", "updated_at"]
+                transition_booking(
+                    booking=booking,
+                    new_status=Booking.Status.PAYMENT_PENDING,
                 )
 
     # The transaction has committed before raising the error.

@@ -6,6 +6,8 @@ from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
+from bookings.services import transition_booking
+
 from bookings.models import Booking, Payment, Hold
 from bookings.services import start_booking_payment
 
@@ -281,13 +283,26 @@ def verify_razorpay_payment(
         if booking.status != Booking.Status.PAYMENT_PENDING:
             raise ValidationError("Booking status changed during verification.")
 
-        payment.provider_payment_id = razorpay_payment_id
+        
         payment.status = Payment.Status.SUCCEEDED
-        payment.save(update_fields=[
-            "provider_payment_id",
-            "status",
-            "updated_at",
-        ])
+        payment.provider_payment_id = razorpay_payment_id
+        payment.save(
+            update_fields=[
+                "status",
+                "provider_payment_id",
+                "updated_at",
+            ]
+        )
+
+        transition_booking(
+            booking=booking,
+            new_status=Booking.Status.CONFIRMED,
+        )
+
+
+
+        booking.status = Booking.Status.CONFIRMED
+        booking.save(update_fields=["status", "updated_at"])
 
         booking.status = Booking.Status.CONFIRMED
         booking.save(update_fields=["status", "updated_at"])
