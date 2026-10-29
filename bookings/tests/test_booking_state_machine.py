@@ -95,3 +95,25 @@ def test_booking_state_transitions(
 
         booking.refresh_from_db()
         assert booking.status == current_status
+
+
+
+@pytest.mark.django_db
+def test_unknown_current_status_raises_validation_error():
+    User = get_user_model()
+    user = User.objects.create_user(
+        username="invalid_status_user",
+        password="testpass123",
+    )
+
+    booking = Booking.objects.create(
+        user=user,
+        status="unknown_status",
+        total_amount=100,
+    )
+
+    with pytest.raises(ValidationError):
+        transition_booking(
+            booking=booking,
+            new_status=Booking.Status.CONFIRMED,
+        )

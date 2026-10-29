@@ -34,10 +34,11 @@ def transition_booking(*, booking, new_status):
         
     }
 
-    if new_status not in allowed_transitions[booking.status]:
+    allowed = allowed_transitions.get(booking.status, set())
+
+    if new_status not in allowed:
         raise ValidationError(
-            f"Invalid booking transition: "
-            f"{booking.status} -> {new_status}"
+             f"Invalid booking transition: {booking.status} -> {new_status}"
         )
 
     booking.status = new_status
@@ -133,6 +134,8 @@ def create_seat_hold(*, user, event_id, event_seat_ids):
 
     return booking
 
+
+
 @transaction.atomic
 def expire_stale_holds():
     """Expire overdue holds and their still-held bookings."""
@@ -142,7 +145,7 @@ def expire_stale_holds():
         Hold.objects
         .select_for_update()
         .filter(
-            status="active",
+            status=Hold.Status.ACTIVE,
             expires_at__lte=now,
         )
         .order_by("id")
@@ -158,17 +161,26 @@ def expire_stale_holds():
 
     Hold.objects.filter(
         id__in=hold_ids,
-        status="active",
-    ).update(status="expired")
+        status=Hold.Status.ACTIVE,
+    ).update(status=Hold.Status.EXPIRED)
 
-    Booking.objects.filter(
-        id__in=booking_ids,
-        status="held",
-    ).update(status="expired")
+    bookings = (
+        Booking.objects
+        .select_for_update()
+        .filter(
+            id__in=booking_ids,
+            status=Booking.Status.HELD,
+        )
+        .order_by("id")
+    )
+
+    for booking in bookings:
+        transition_booking(
+            booking=booking,
+            new_status=Booking.Status.EXPIRED,
+        )
 
     return len(hold_ids)
-
-
 
 
 def start_booking_payment(*, user, booking_id):

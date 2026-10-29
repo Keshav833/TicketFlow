@@ -112,3 +112,25 @@ def test_booking_list_requires_authentication(booking_setup):
     response = client.get("/api/bookings/")
 
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_hold_response_includes_expiry_and_event_id(booking_setup):
+    user, _, booking = booking_setup
+    event_seat_id = booking.items.get().event_seat_id
+    event_id = booking.items.get().event_seat.event_id
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+    response = client.post(
+        "/api/bookings/holds/",
+        {
+            "event_id": event_id,
+            "event_seat_ids": [event_seat_id],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["hold_expires_at"]
+    assert response.data["items"][0]["event_id"] == event_id

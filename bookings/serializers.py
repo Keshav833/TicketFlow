@@ -6,6 +6,10 @@ from events.models import EventSeat
 
 # Converts each purchased seat into readable JSON
 class BookingItemSerializer(serializers.ModelSerializer):
+    event_id = serializers.IntegerField(
+        source="event_seat.event_id",
+        read_only=True,
+    )
     seat_row = serializers.CharField(
         source="event_seat.seat.row",
         read_only=True,
@@ -24,6 +28,7 @@ class BookingItemSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "event_seat",
+            "event_id",
             "event_name",
             "seat_row",
             "seat_number",
@@ -33,8 +38,27 @@ class BookingItemSerializer(serializers.ModelSerializer):
 # Returns booking details with nested items
 class BookingSerializer(serializers.ModelSerializer):
     items = BookingItemSerializer(many=True, read_only=True)
+    hold_expires_at = serializers.SerializerMethodField()
 # read_only=True -  Prevents clients from changing fields through this serializer
 # many=True	   -    Serializes multiple items belonging to a booking
+
+    def get_hold_expires_at(self, booking):
+        prefetched_holds = getattr(
+            booking,
+            "_prefetched_objects_cache",
+            {},
+        ).get("holds")
+        holds = (
+            prefetched_holds
+            if prefetched_holds is not None
+            else booking.holds.all()
+        )
+        expirations = [
+            hold.expires_at
+            for hold in holds
+            if hold.status == "active"
+        ]
+        return min(expirations).isoformat() if expirations else None
 
     class Meta:
         model = Booking
@@ -45,6 +69,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "items",
+            "hold_expires_at",
         ]
         read_only_fields = fields
 

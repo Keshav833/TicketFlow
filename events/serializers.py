@@ -69,6 +69,7 @@ class SeatSerializer(serializers.ModelSerializer):
 
 # EventSeatSerializer exposes the seats assigned to an event, along with their ticket tier and price.
 class EventSeatSerializer(serializers.ModelSerializer):
+    availability_status = serializers.SerializerMethodField()
     seat_row = serializers.CharField(
         source="seat.row",
         read_only=True,
@@ -99,4 +100,12 @@ class EventSeatSerializer(serializers.ModelSerializer):
             "ticket_tier",
             "ticket_tier_name",
             "price",
+            "availability_status",
         ]
+
+    def get_availability_status(self, obj):
+        if obj.is_sold:
+            return "sold"
+        if obj.has_active_hold:
+            return "held"
+        return "available"

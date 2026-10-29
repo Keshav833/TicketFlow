@@ -135,6 +135,19 @@ docker compose exec web python manage.py createsuperuser
 - API docs (Swagger): `http://localhost:8000/api/docs/`
 - Admin: `http://localhost:8000/admin/`
 
+### Frontend
+
+The responsive React application is in [`frontend/`](./frontend/README.md). Start Django as above, then in a second PowerShell terminal run:
+
+```powershell
+cd frontend
+npm install
+Copy-Item .env.example .env
+npm run dev
+```
+
+The Vite development server proxies API calls to Django at `http://127.0.0.1:8000`. See the frontend README for the API inventory, supported backend features, test commands, and production configuration.
+
 ### Running tests
 
 ```bash

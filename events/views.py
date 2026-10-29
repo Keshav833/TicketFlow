@@ -1,11 +1,14 @@
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Exists, OuterRef
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.utils import timezone
 from .models import Event, EventSeat, Seat, Venue
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
 from .filters import EventFilter
+from bookings.models import Booking, BookingItem, Hold
 
 from .serializers import (
     EventSeatSerializer,
@@ -87,6 +90,20 @@ class EventSeatListView(generics.ListAPIView):
             "event",
             "seat",
             "ticket_tier",
+        ).annotate(
+            is_sold=Exists(
+                BookingItem.objects.filter(
+                    event_seat_id=OuterRef("pk"),
+                    booking__status=Booking.Status.CONFIRMED,
+                )
+            ),
+            has_active_hold=Exists(
+                Hold.objects.filter(
+                    event_seat_id=OuterRef("pk"),
+                    status=Hold.Status.ACTIVE,
+                    expires_at__gt=timezone.now(),
+                )
+            ),
         ).order_by(
             "seat__row",
             "seat__number",

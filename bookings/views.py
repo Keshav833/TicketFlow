@@ -31,6 +31,7 @@ class BookingListView(generics.ListAPIView):
             .prefetch_related(
                 "items__event_seat__seat",
                 "items__event_seat__event",
+                "holds",
             )
             .order_by("-created_at")
         )
@@ -47,6 +48,7 @@ class BookingDetailView(generics.RetrieveAPIView):
             .prefetch_related(
                 "items__event_seat__seat",
                 "items__event_seat__event",
+                "holds",
             )
         )
 
