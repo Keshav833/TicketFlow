@@ -18,6 +18,7 @@ from bookings.models import (
     Hold,
     Payment,
     ProcessedWebhookEvent,
+    Ticket,
 )
 from events.models import Event, EventSeat, Seat, TicketTier, Venue
 
@@ -155,6 +156,24 @@ class RazorpayWebhookTests(TestCase):
                 event_id="event_captured_1"
             ).exists()
         )
+        # Verify ticket generation.
+        tickets = Ticket.objects.filter(
+            booking_item__booking=self.booking
+        )
+
+        self.assertEqual(tickets.count(), 1)
+
+        ticket = tickets.first()
+
+        self.assertEqual(ticket.status, Ticket.Status.ISSUED)
+        self.assertTrue(ticket.qr_code)
+
+        # Verify QR image exists in storage.
+        self.assertTrue(
+            ticket.qr_code.storage.exists(ticket.qr_code.name)
+        )
+
+
 
     def test_invalid_signature_is_rejected(self):
         payload = self.make_payload("payment.captured")

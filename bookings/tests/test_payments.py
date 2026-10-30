@@ -12,6 +12,8 @@ from bookings.payment_services import create_razorpay_order
 from bookings.payment_services import verify_razorpay_payment
 from bookings.models import Booking, BookingItem, Hold, Payment
 from events.models import Venue, Event, Seat, TicketTier, EventSeat
+from bookings.models import Ticket
+
 
 
 User = get_user_model()
@@ -282,6 +284,23 @@ class PaymentRetryTests(TestCase):
             Hold.Status.CONVERTED,
         )
         self.assertEqual(result["booking_status"], Booking.Status.CONFIRMED)
+
+        # Verify ticket generation.
+        tickets = Ticket.objects.filter(
+            booking_item__booking=booking
+        )
+
+        self.assertEqual(tickets.count(), 1)
+
+        ticket = tickets.first()
+
+        self.assertEqual(ticket.status, Ticket.Status.ISSUED)
+        self.assertTrue(ticket.qr_code)
+
+        # Verify QR image exists in storage.
+        self.assertTrue(
+            ticket.qr_code.storage.exists(ticket.qr_code.name)
+        )
 
 
     @patch("bookings.payment_services.get_razorpay_client")

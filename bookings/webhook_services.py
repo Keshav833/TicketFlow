@@ -7,6 +7,9 @@ from django.db import transaction
 from rest_framework.exceptions import ValidationError
 from bookings.services import transition_booking
 from bookings.models import Booking, Payment, Hold, ProcessedWebhookEvent
+from bookings.ticket_services import generate_tickets
+from bookings.email_services import send_booking_confirmation_email
+from bookings.email_services import send_confirmation_safely
 
 
 def verify_webhook_signature(*, payload, signature):
@@ -117,7 +120,6 @@ def process_razorpay_webhook(*, payload, signature, event_id):
                     ]
                 )
 
-                                
                 transition_booking(
                     booking=booking,
                     new_status=Booking.Status.CONFIRMED,
@@ -131,6 +133,14 @@ def process_razorpay_webhook(*, payload, signature, event_id):
                 raise ValidationError(
                     "A different payment has already succeeded."
                 )
+
+            # Ensure tickets exist for every successful payment.
+            tickets = generate_tickets(booking.id)
+
+            transaction.on_commit(
+                lambda booking_id=booking.id:
+                    send_confirmation_safely(booking_id)
+            )
 
         elif event_type == "payment.failed":
             # A delayed failure event must never undo a successful payment.

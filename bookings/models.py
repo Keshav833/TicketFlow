@@ -1,3 +1,4 @@
+import uuid
 from django.conf import settings
 from django.db import models
 from events.models import EventSeat
@@ -211,3 +212,50 @@ class ProcessedWebhookEvent(models.Model):
 
     def __str__(self):
         return f"{self.event_type}: {self.event_id}"
+
+
+class Ticket(models.Model):
+
+    class Status(models.TextChoices):
+        ISSUED = "issued", "Issued"
+        USED = "used", "Used"
+        CANCELLED = "cancelled", "Cancelled"
+
+    booking_item = models.OneToOneField(
+        BookingItem,
+        on_delete=models.PROTECT,
+        related_name="ticket",
+    )
+
+    ticket_number = models.CharField(
+        max_length=30,
+        unique=True,
+    )
+
+    verification_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
+
+    qr_code = models.ImageField(
+    upload_to="tickets/qr_codes/",
+    blank=True,
+    null=True,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ISSUED,
+    )
+
+    issued_at = models.DateTimeField(auto_now_add=True)
+
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    def __str__(self):
+        return f"Ticket {self.ticket_number} - {self.status}"
