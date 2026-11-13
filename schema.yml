@@ -1,0 +1,957 @@
+openapi: 3.0.3
+info:
+  title: TicketFlow API
+  version: 1.0.0
+  description: API documentation for the TicketFlow ticket booking platform.
+paths:
+  /api/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      description: Retrieve the currently authenticated user's details.
+      tags:
+      - Authentication
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+          description: ''
+  /api/auth/register/:
+    post:
+      operationId: auth_register_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Register'
+          description: ''
+  /api/auth/token/:
+    post:
+      operationId: auth_token_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /api/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/bookings/:
+    get:
+      operationId: bookings_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - bookings
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBookingList'
+          description: ''
+  /api/bookings/{id}/:
+    get:
+      operationId: bookings_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - bookings
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          description: ''
+  /api/bookings/holds/:
+    post:
+      operationId: bookings_holds_create
+      description: Create a temporary seat hold for an event.
+      tags:
+      - Bookings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHold'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateHold'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateHold'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          description: ''
+  /api/bookings/payments/create-order/:
+    post:
+      operationId: bookings_payments_create_order_create
+      description: Create or retrieve an existing pending Razorpay payment order.
+      tags:
+      - Payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentOrderRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentOrderRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentOrderRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatePaymentOrderResponse'
+          description: ''
+  /api/bookings/payments/verify/:
+    post:
+      operationId: bookings_payments_verify_create
+      description: Verify Razorpay payment and confirm the booking.
+      tags:
+      - Payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyPaymentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyPaymentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyPaymentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyPaymentResponse'
+          description: ''
+  /api/bookings/payments/webhook/:
+    post:
+      operationId: bookings_payments_webhook_create
+      description: Receive and verify Razorpay webhook events. Requires X-Razorpay-Signature
+        and X-Razorpay-Event-Id headers.
+      tags:
+      - Payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Razorpay webhook event payload.
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RazorpayWebhookResponse'
+          description: ''
+  /api/bookings/tickets/check-in/:
+    post:
+      operationId: bookings_tickets_check_in_create
+      description: Verify a ticket and mark it as used.
+      tags:
+      - Tickets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketCheckIn'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TicketCheckIn'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TicketCheckIn'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+          description: ''
+  /api/events/:
+    get:
+      operationId: events_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: starts_after
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: starts_before
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: venue
+        schema:
+          type: integer
+      tags:
+      - events
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEventList'
+          description: ''
+  /api/events/{event_id}/seats/:
+    get:
+      operationId: events_seats_list
+      description: List seats and their availability for a specific event.
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: integer
+        required: true
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Events
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEventSeatList'
+          description: ''
+  /api/events/{id}/:
+    get:
+      operationId: events_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this event.
+        required: true
+      tags:
+      - events
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+  /api/health/:
+    get:
+      operationId: health_retrieve
+      description: Check whether the TicketFlow API is running.
+      tags:
+      - Health
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+          description: ''
+  /api/venues/:
+    get:
+      operationId: venues_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - venues
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVenueList'
+          description: ''
+  /api/venues/{id}/:
+    get:
+      operationId: venues_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this venue.
+        required: true
+      tags:
+      - venues
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venue'
+          description: ''
+  /api/venues/{id}/seats/:
+    get:
+      operationId: venues_seats_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this venue.
+        required: true
+      tags:
+      - venues
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venue'
+          description: ''
+components:
+  schemas:
+    Booking:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingItem'
+          readOnly: true
+        hold_expires_at:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - created_at
+      - hold_expires_at
+      - id
+      - items
+      - status
+      - total_amount
+      - updated_at
+    BookingItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        event_seat:
+          type: integer
+        event_id:
+          type: integer
+          readOnly: true
+        event_name:
+          type: string
+          readOnly: true
+        seat_row:
+          type: string
+          readOnly: true
+        seat_number:
+          type: integer
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+      required:
+      - event_id
+      - event_name
+      - event_seat
+      - id
+      - price
+      - seat_number
+      - seat_row
+    CreateHold:
+      type: object
+      properties:
+        event_id:
+          type: integer
+          minimum: 1
+        event_seat_ids:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          maxItems: 10
+          minItems: 1
+      required:
+      - event_id
+      - event_seat_ids
+    CreatePaymentOrderRequest:
+      type: object
+      properties:
+        booking_id:
+          type: integer
+          minimum: 1
+      required:
+      - booking_id
+    CreatePaymentOrderResponse:
+      type: object
+      properties:
+        booking_id:
+          type: integer
+        payment_id:
+          type: integer
+        razorpay_order_id:
+          type: string
+        razorpay_key_id:
+          type: string
+        amount:
+          type: integer
+          description: Payment amount in paise.
+        currency:
+          type: string
+      required:
+      - amount
+      - booking_id
+      - currency
+      - payment_id
+      - razorpay_key_id
+      - razorpay_order_id
+    Event:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        venue:
+          type: integer
+        venue_name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - ends_at
+      - id
+      - name
+      - starts_at
+      - updated_at
+      - venue
+      - venue_name
+    EventSeat:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        event:
+          type: integer
+        seat:
+          type: integer
+        seat_row:
+          type: string
+          readOnly: true
+        seat_number:
+          type: integer
+          readOnly: true
+        ticket_tier:
+          type: integer
+        ticket_tier_name:
+          type: string
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        availability_status:
+          type: string
+          readOnly: true
+      required:
+      - availability_status
+      - event
+      - id
+      - price
+      - seat
+      - seat_number
+      - seat_row
+      - ticket_tier
+      - ticket_tier_name
+    HealthCheck:
+      type: object
+      properties:
+        status:
+          type: string
+        service:
+          type: string
+      required:
+      - service
+      - status
+    Me:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+      required:
+      - email
+      - id
+      - username
+    PaginatedBookingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+    PaginatedEventList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+    PaginatedEventSeatList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSeat'
+    PaginatedVenueList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Venue'
+    RazorpayWebhookResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        event:
+          type: string
+      required:
+      - detail
+    Register:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+      required:
+      - password
+      - username
+    StatusEnum:
+      enum:
+      - held
+      - payment_pending
+      - confirmed
+      - expired
+      - cancelled
+      - refunded
+      type: string
+      description: |-
+        * `held` - Held
+        * `payment_pending` - Payment Pending
+        * `confirmed` - Confirmed
+        * `expired` - Expired
+        * `cancelled` - Cancelled
+        * `refunded` - Refunded
+    TicketCheckIn:
+      type: object
+      properties:
+        verification_token:
+          type: string
+          format: uuid
+      required:
+      - verification_token
+    TokenObtainPair:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - password
+      - refresh
+      - username
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          writeOnly: true
+      required:
+      - access
+      - refresh
+    Venue:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        address:
+          type: string
+        city:
+          type: string
+          maxLength: 100
+      required:
+      - address
+      - city
+      - id
+      - name
+    VerifyPaymentRequest:
+      type: object
+      properties:
+        booking_id:
+          type: integer
+          minimum: 1
+        razorpay_order_id:
+          type: string
+        razorpay_payment_id:
+          type: string
+        razorpay_signature:
+          type: string
+          writeOnly: true
+      required:
+      - booking_id
+      - razorpay_order_id
+      - razorpay_payment_id
+      - razorpay_signature
+    VerifyPaymentResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        booking_id:
+          type: integer
+        payment_id:
+          type: integer
+        payment_status:
+          type: string
+        booking_status:
+          type: string
+      required:
+      - booking_id
+      - booking_status
+      - detail
+      - payment_id
+      - payment_status
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -9,6 +9,7 @@ from rest_framework import generics
 from rest_framework.exceptions import NotFound
 from .filters import EventFilter
 from bookings.models import Booking, BookingItem, Hold
+from drf_spectacular.utils import extend_schema
 
 from .serializers import (
     EventSeatSerializer,
@@ -78,10 +79,18 @@ class VenueViewSet(viewsets.ReadOnlyModelViewSet): #it automatically allows user
 
 # This code creates a read-only list endpoint (like a public API URL) 
 # that displays all the available seats and ticket prices for one specific event.
+@extend_schema(
+    responses={200: EventSeatSerializer(many=True)},
+    description="List seats and their availability for a specific event.",
+    tags=["Events"],
+)
 class EventSeatListView(generics.ListAPIView):
     serializer_class = EventSeatSerializer
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return EventSeat.objects.none()
+
         event_id = self.kwargs["event_id"]
 
         queryset = EventSeat.objects.filter(

@@ -4,6 +4,10 @@ from rest_framework import serializers
 
 User = get_user_model()
 
+class MeSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    email = serializers.EmailField()
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(

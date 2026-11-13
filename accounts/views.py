@@ -3,7 +3,8 @@ from rest_framework import generics , permissions
 #  permissions (security rules to control who can access those views).
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from drf_spectacular.utils import extend_schema
+from .serializers import RegisterSerializer, MeSerializer
 from .serializers import RegisterSerializer
 
 class RegisterView(generics.CreateAPIView):
@@ -12,6 +13,11 @@ class RegisterView(generics.CreateAPIView):
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        responses={200: MeSerializer},
+        description="Retrieve the currently authenticated user's details.",
+        tags=["Authentication"],
+    )
     def get(self, request):
         return Response({
             "id": request.user.id,

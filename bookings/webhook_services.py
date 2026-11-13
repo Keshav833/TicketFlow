@@ -1,7 +1,9 @@
 import hashlib
 import hmac
 import json
+import logging
 
+logger = logging.getLogger(__name__)
 from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
@@ -32,26 +34,48 @@ def verify_webhook_signature(*, payload, signature):
         raise ValidationError("Invalid webhook signature.")
 
 
+
 def process_razorpay_webhook(*, payload, signature, event_id):
     """Verify and process supported Razorpay webhook events."""
 
+    logger.info("Razorpay webhook received")
+
     # Never trust event data before checking its signature.
-    verify_webhook_signature(
-        payload=payload,
-        signature=signature,
-    )
+    try:
+        verify_webhook_signature(
+            payload=payload,
+            signature=signature,
+        )
+    except Exception:
+        logger.exception("Razorpay webhook signature verification failed")
+        raise
+
+    logger.info("Razorpay webhook signature verified")
 
     if not event_id:
+        logger.warning("Webhook rejected: missing event ID")
         raise ValidationError("Missing Razorpay event ID.")
 
     try:
         event = json.loads(payload)
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise ValidationError("Invalid webhook JSON payload.") from exc
+        logger.warning("Webhook rejected: invalid JSON payload")
+        raise ValidationError(
+            "Invalid webhook JSON payload."
+        ) from exc
 
     event_type = event.get("event")
 
+    logger.info(
+        "Processing Razorpay webhook event: %s",
+        event_type,
+    )
+
     if event_type not in ("payment.captured", "payment.failed"):
+        logger.info(
+            "Unsupported webhook event ignored: %s",
+            event_type,
+        )
         return {"detail": "Event ignored.", "event": event_type}
 
     payment_entity = (
@@ -66,7 +90,12 @@ def process_razorpay_webhook(*, payload, signature, event_id):
     currency = payment_entity.get("currency")
 
     if not order_id or not provider_payment_id:
-        raise ValidationError("Webhook is missing payment identifiers.")
+        logger.warning(
+            "Webhook rejected: missing payment identifiers"
+        )
+        raise ValidationError(
+            "Webhook is missing payment identifiers."
+        )
 
     with transaction.atomic():
         payment = (
@@ -79,7 +108,12 @@ def process_razorpay_webhook(*, payload, signature, event_id):
         )
 
         if payment is None:
-            raise ValidationError("No matching payment order found.")
+            logger.warning(
+                "Webhook rejected: no matching payment order found"
+            )
+            raise ValidationError(
+                "No matching payment order found."
+            )
 
         booking = Booking.objects.select_for_update().get(
             pk=payment.booking_id
@@ -89,29 +123,49 @@ def process_razorpay_webhook(*, payload, signature, event_id):
         if ProcessedWebhookEvent.objects.filter(
             event_id=event_id
         ).exists():
+            logger.info(
+                "Duplicate webhook event ignored: %s",
+                event_id,
+            )
             return {"detail": "Duplicate event ignored."}
 
         if event_type == "payment.captured":
             expected_amount = int(payment.amount * 100)
 
             if amount != expected_amount or currency != "INR":
+                logger.warning(
+                    "Webhook payment amount or currency mismatch "
+                    "for booking %s",
+                    booking.id,
+                )
                 raise ValidationError(
                     "Webhook payment amount or currency does not match."
                 )
 
             if payment.status == Payment.Status.FAILED:
+                logger.warning(
+                    "Captured event rejected for previously failed "
+                    "payment %s",
+                    payment.id,
+                )
                 raise ValidationError(
                     "A failed payment cannot be confirmed by this event."
                 )
 
             if payment.status != Payment.Status.SUCCEEDED:
                 if booking.status != Booking.Status.PAYMENT_PENDING:
+                    logger.warning(
+                        "Captured event rejected: booking %s "
+                        "is not awaiting payment",
+                        booking.id,
+                    )
                     raise ValidationError(
                         "Booking is not awaiting payment."
                     )
 
                 payment.provider_payment_id = provider_payment_id
                 payment.status = Payment.Status.SUCCEEDED
+
                 payment.save(
                     update_fields=[
                         "provider_payment_id",
@@ -129,13 +183,29 @@ def process_razorpay_webhook(*, payload, signature, event_id):
                     status=Hold.Status.ACTIVE
                 ).update(status=Hold.Status.CONVERTED)
 
+                logger.info(
+                    "Payment captured and booking %s confirmed",
+                    booking.id,
+                )
+
             elif payment.provider_payment_id != provider_payment_id:
+                logger.warning(
+                    "Different successful payment detected "
+                    "for booking %s",
+                    booking.id,
+                )
                 raise ValidationError(
                     "A different payment has already succeeded."
                 )
 
             # Ensure tickets exist for every successful payment.
             tickets = generate_tickets(booking.id)
+
+            logger.info(
+                "Tickets ensured for booking %s. Ticket count: %s",
+                booking.id,
+                len(tickets),
+            )
 
             transaction.on_commit(
                 lambda booking_id=booking.id:
@@ -145,10 +215,17 @@ def process_razorpay_webhook(*, payload, signature, event_id):
         elif event_type == "payment.failed":
             # A delayed failure event must never undo a successful payment.
             if payment.status == Payment.Status.SUCCEEDED:
+                logger.warning(
+                    "Delayed payment failure ignored for successful "
+                    "booking %s",
+                    booking.id,
+                )
+
                 ProcessedWebhookEvent.objects.create(
                     event_id=event_id,
                     event_type=event_type,
                 )
+
                 return {
                     "detail": "Failure event ignored for successful payment."
                 }
@@ -156,6 +233,7 @@ def process_razorpay_webhook(*, payload, signature, event_id):
             if payment.status == Payment.Status.PENDING:
                 payment.provider_payment_id = provider_payment_id
                 payment.status = Payment.Status.FAILED
+
                 payment.save(
                     update_fields=[
                         "provider_payment_id",
@@ -164,9 +242,20 @@ def process_razorpay_webhook(*, payload, signature, event_id):
                     ]
                 )
 
+                logger.warning(
+                    "Payment failed for booking %s",
+                    booking.id,
+                )
+
         ProcessedWebhookEvent.objects.create(
             event_id=event_id,
             event_type=event_type,
         )
+
+    logger.info(
+        "Razorpay webhook processed successfully: event=%s, event_id=%s",
+        event_type,
+        event_id,
+    )
 
     return {"detail": "Webhook processed successfully."}

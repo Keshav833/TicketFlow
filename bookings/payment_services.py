@@ -1,6 +1,9 @@
 
 from decimal import Decimal
 
+import logging
+
+logger = logging.getLogger(__name__)
 import razorpay
 from django.conf import settings
 from django.db import transaction
@@ -163,7 +166,6 @@ def create_razorpay_order(*, user, booking_id):
     return format_payment_response(booking, payment)
 
 
-
 def verify_razorpay_payment(
     *,
     user,
@@ -175,8 +177,12 @@ def verify_razorpay_payment(
     from django.db import transaction
     from rest_framework.exceptions import ValidationError
 
-    # First, verify that the booking belongs to this user and that
-    # the order ID matches our stored payment record.
+    logger.info(
+        "Payment verification started for booking %s",
+        booking_id,
+    )
+
+    # First transaction: validate booking and payment state.
     with transaction.atomic():
         booking = (
             Booking.objects.select_for_update()
@@ -185,6 +191,10 @@ def verify_razorpay_payment(
         )
 
         if booking is None:
+            logger.warning(
+                "Payment verification rejected: booking %s not found",
+                booking_id,
+            )
             raise ValidationError("Booking not found.")
 
         payment = (
@@ -198,10 +208,20 @@ def verify_razorpay_payment(
         )
 
         if payment is None:
-            raise ValidationError("Payment order does not match this booking.")
+            logger.warning(
+                "Payment order mismatch for booking %s",
+                booking.id,
+            )
+            raise ValidationError(
+                "Payment order does not match this booking."
+            )
 
         if payment.status == Payment.Status.SUCCEEDED:
             if payment.provider_payment_id == razorpay_payment_id:
+                logger.info(
+                    "Duplicate payment verification for booking %s",
+                    booking.id,
+                )
                 return {
                     "detail": "Payment already verified.",
                     "booking_id": booking.id,
@@ -210,17 +230,35 @@ def verify_razorpay_payment(
                     "booking_status": booking.status,
                 }
 
-            raise ValidationError("Booking already has a different successful payment.")
+            logger.warning(
+                "Different successful payment detected for booking %s",
+                booking.id,
+            )
+            raise ValidationError(
+                "Booking already has a different successful payment."
+            )
 
         if payment.status != Payment.Status.PENDING:
-            raise ValidationError("Payment is not eligible for verification.")
+            logger.warning(
+                "Payment %s is not eligible for verification",
+                payment.id,
+            )
+            raise ValidationError(
+                "Payment is not eligible for verification."
+            )
 
         if booking.status != Booking.Status.PAYMENT_PENDING:
-            raise ValidationError("Booking is not awaiting payment.")
+            logger.warning(
+                "Booking %s is not awaiting payment",
+                booking.id,
+            )
+            raise ValidationError(
+                "Booking is not awaiting payment."
+            )
 
         expected_amount = int(payment.amount * 100)
 
-    # Verify the checkout signature with Razorpay's SDK.
+    # Verify checkout signature with Razorpay.
     client = get_razorpay_client()
 
     try:
@@ -230,34 +268,64 @@ def verify_razorpay_payment(
             "razorpay_signature": razorpay_signature,
         })
 
-        # Fetch payment details from Razorpay. A valid signature alone
-        # does not establish that the payment has been captured.
-        provider_payment = client.payment.fetch(razorpay_payment_id)
+        provider_payment = client.payment.fetch(
+            razorpay_payment_id
+        )
 
     except razorpay.errors.SignatureVerificationError as exc:
-        raise ValidationError("Invalid Razorpay payment signature.") from exc
-    except Exception as exc:
+        logger.error(
+            "Razorpay signature verification failed for booking %s",
+            booking_id,
+        )
         raise ValidationError(
-            "Unable to verify payment with Razorpay. Try again later."
+            "Invalid Razorpay payment signature."
         ) from exc
 
-    # Confirm the fetched payment belongs to this order and matches
-    # the amount expected by our database.
+    except Exception:
+        logger.exception(
+            "Razorpay API verification failed for booking %s",
+            booking_id,
+        )
+        raise ValidationError(
+            "Unable to verify payment with Razorpay. Try again later."
+        )
+
+    # Validate provider payment details.
     if str(provider_payment.get("order_id")) != str(razorpay_order_id):
-        raise ValidationError("Payment does not belong to the expected order.")
+        logger.warning(
+            "Razorpay order mismatch for booking %s",
+            booking_id,
+        )
+        raise ValidationError(
+            "Payment does not belong to the expected order."
+        )
 
     if provider_payment.get("amount") != expected_amount:
-        raise ValidationError("Payment amount does not match the booking.")
+        logger.warning(
+            "Payment amount mismatch for booking %s",
+            booking_id,
+        )
+        raise ValidationError(
+            "Payment amount does not match the booking."
+        )
 
     if provider_payment.get("currency") != "INR":
+        logger.warning(
+            "Unexpected payment currency for booking %s",
+            booking_id,
+        )
         raise ValidationError("Unexpected payment currency.")
 
     if provider_payment.get("status") != "captured":
+        logger.warning(
+            "Payment not captured for booking %s",
+            booking_id,
+        )
         raise ValidationError(
             "Payment is not captured yet. Booking remains unconfirmed."
         )
 
-    # Lock and recheck state before applying the result.
+    # Second transaction: lock and recheck state.
     with transaction.atomic():
         booking = Booking.objects.select_for_update().get(
             id=booking_id,
@@ -268,10 +336,12 @@ def verify_razorpay_payment(
             id=payment.id,
         )
 
-        # Another request or webhook may have completed this payment
-        # while the Razorpay API request was in progress.
         if payment.status == Payment.Status.SUCCEEDED:
             if payment.provider_payment_id == razorpay_payment_id:
+                logger.info(
+                    "Payment already completed by another request for booking %s",
+                    booking.id,
+                )
                 return {
                     "detail": "Payment already verified.",
                     "booking_id": booking.id,
@@ -279,17 +349,36 @@ def verify_razorpay_payment(
                     "payment_status": payment.status,
                     "booking_status": booking.status,
                 }
-            raise ValidationError("A different payment has already succeeded.")
+
+            logger.warning(
+                "Another payment succeeded for booking %s",
+                booking.id,
+            )
+            raise ValidationError(
+                "A different payment has already succeeded."
+            )
 
         if payment.status != Payment.Status.PENDING:
-            raise ValidationError("Payment status changed during verification.")
+            logger.warning(
+                "Payment %s changed during verification",
+                payment.id,
+            )
+            raise ValidationError(
+                "Payment status changed during verification."
+            )
 
         if booking.status != Booking.Status.PAYMENT_PENDING:
-            raise ValidationError("Booking status changed during verification.")
+            logger.warning(
+                "Booking %s changed during payment verification",
+                booking.id,
+            )
+            raise ValidationError(
+                "Booking status changed during verification."
+            )
 
-        
         payment.status = Payment.Status.SUCCEEDED
         payment.provider_payment_id = razorpay_payment_id
+
         payment.save(
             update_fields=[
                 "status",
@@ -303,14 +392,19 @@ def verify_razorpay_payment(
             new_status=Booking.Status.CONFIRMED,
         )
 
-
-
         booking.holds.filter(
             status=Hold.Status.ACTIVE
         ).update(status=Hold.Status.CONVERTED)
 
-        # Generate one ticket for every booking item.
         tickets = generate_tickets(booking.id)
+
+        logger.info(
+            "Payment successful and booking %s confirmed. "
+            "Payment ID: %s, Tickets generated: %s",
+            booking.id,
+            payment.id,
+            len(tickets),
+        )
 
         transaction.on_commit(
             lambda booking_id=booking.id:
@@ -324,3 +418,4 @@ def verify_razorpay_payment(
         "payment_status": payment.status,
         "booking_status": booking.status,
     }
+

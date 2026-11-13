@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from .models import Event
 from .models import EventSeat, Seat , Venue
-
+from drf_spectacular.utils import extend_schema_field
 # A serializer translates Django model objects into JSON and validates incoming data.
 class EventSerializer(serializers.ModelSerializer):
     # venue_name is a readable label for the client.
@@ -103,9 +103,12 @@ class EventSeatSerializer(serializers.ModelSerializer):
             "availability_status",
         ]
 
-    def get_availability_status(self, obj):
+    @extend_schema_field(serializers.CharField())
+    def get_availability_status(self, obj) -> str:
         if obj.is_sold:
             return "sold"
         if obj.has_active_hold:
             return "held"
         return "available"
+
+    

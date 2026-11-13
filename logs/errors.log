@@ -1,0 +1,119 @@
+2026-11-01 12:36:59,900 | ERROR | ticketflow | This is a error  test
+2026-11-01 12:53:08,122 | ERROR | bookings.payment_services | Razorpay signature verification failed for booking 4
+2026-11-01 12:59:37,455 | ERROR | bookings.webhook_services | Razorpay webhook signature verification failed
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 45, in process_razorpay_webhook
+    verify_webhook_signature(
+    ~~~~~~~~~~~~~~~~~~~~~~~~^
+        payload=payload,
+        ^^^^^^^^^^^^^^^^
+        signature=signature,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 34, in verify_webhook_signature
+    raise ValidationError("Invalid webhook signature.")
+rest_framework.exceptions.ValidationError: [ErrorDetail(string='Invalid webhook signature.', code='invalid')]
+2026-11-01 13:00:01,250 | ERROR | bookings.payment_services | Razorpay signature verification failed for booking 4
+2026-11-13 14:28:46,948 | ERROR | bookings.payment_services | Razorpay signature verification failed for booking 4
+2026-11-13 14:28:50,013 | ERROR | bookings.webhook_services | Razorpay webhook signature verification failed
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 45, in process_razorpay_webhook
+    verify_webhook_signature(
+    ~~~~~~~~~~~~~~~~~~~~~~~~^
+        payload=payload,
+        ^^^^^^^^^^^^^^^^
+        signature=signature,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 34, in verify_webhook_signature
+    raise ValidationError("Invalid webhook signature.")
+rest_framework.exceptions.ValidationError: [ErrorDetail(string='Invalid webhook signature.', code='invalid')]
+2026-11-13 14:30:53,914 | ERROR | bookings.email_services | Failed to send confirmation email for booking 21
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\email_services.py", line 116, in send_confirmation_safely
+    send_booking_confirmation_email(booking_id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+Exception: SMTP connection failed
+2026-11-13 14:30:57,027 | ERROR | bookings.payment_services | Razorpay signature verification failed for booking 35
+2026-11-13 14:30:58,281 | ERROR | bookings.webhook_services | Razorpay webhook signature verification failed
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 45, in process_razorpay_webhook
+    verify_webhook_signature(
+    ~~~~~~~~~~~~~~~~~~~~~~~~^
+        payload=payload,
+        ^^^^^^^^^^^^^^^^
+        signature=signature,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 34, in verify_webhook_signature
+    raise ValidationError("Invalid webhook signature.")
+rest_framework.exceptions.ValidationError: [ErrorDetail(string='Invalid webhook signature.', code='invalid')]
+2026-11-13 15:09:03,701 | ERROR | bookings.email_services | Failed to send confirmation email for booking 21
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\email_services.py", line 116, in send_confirmation_safely
+    send_booking_confirmation_email(booking_id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+Exception: SMTP connection failed
+2026-11-13 15:09:06,399 | ERROR | bookings.payment_services | Razorpay signature verification failed for booking 35
+2026-11-13 15:09:07,308 | ERROR | bookings.webhook_services | Razorpay webhook signature verification failed
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 45, in process_razorpay_webhook
+    verify_webhook_signature(
+    ~~~~~~~~~~~~~~~~~~~~~~~~^
+        payload=payload,
+        ^^^^^^^^^^^^^^^^
+        signature=signature,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 34, in verify_webhook_signature
+    raise ValidationError("Invalid webhook signature.")
+rest_framework.exceptions.ValidationError: [ErrorDetail(string='Invalid webhook signature.', code='invalid')]
+2026-11-13 15:13:27,243 | ERROR | bookings.email_services | Failed to send confirmation email for booking 21
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\email_services.py", line 116, in send_confirmation_safely
+    send_booking_confirmation_email(booking_id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+Exception: SMTP connection failed
+2026-11-13 15:13:29,559 | ERROR | bookings.payment_services | Razorpay signature verification failed for booking 35
+2026-11-13 15:13:30,602 | ERROR | bookings.webhook_services | Razorpay webhook signature verification failed
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 45, in process_razorpay_webhook
+    verify_webhook_signature(
+    ~~~~~~~~~~~~~~~~~~~~~~~~^
+        payload=payload,
+        ^^^^^^^^^^^^^^^^
+        signature=signature,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 34, in verify_webhook_signature
+    raise ValidationError("Invalid webhook signature.")
+rest_framework.exceptions.ValidationError: [ErrorDetail(string='Invalid webhook signature.', code='invalid')]

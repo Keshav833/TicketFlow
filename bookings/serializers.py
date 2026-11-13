@@ -4,6 +4,8 @@ from .models import Booking, BookingItem
 
 from events.models import EventSeat
 
+from typing import Optional
+
 # Converts each purchased seat into readable JSON
 class BookingItemSerializer(serializers.ModelSerializer):
     event_id = serializers.IntegerField(
@@ -42,7 +44,7 @@ class BookingSerializer(serializers.ModelSerializer):
 # read_only=True -  Prevents clients from changing fields through this serializer
 # many=True	   -    Serializes multiple items belonging to a booking
 
-    def get_hold_expires_at(self, booking):
+    def get_hold_expires_at(self, booking) -> Optional[str]:
         prefetched_holds = getattr(
             booking,
             "_prefetched_objects_cache",
@@ -112,3 +114,44 @@ class CreateHoldSerializer(serializers.Serializer):
             })
 
         return attrs
+
+
+
+class TicketCheckInSerializer(serializers.Serializer):
+    verification_token = serializers.UUIDField()
+
+
+
+class CreatePaymentOrderRequestSerializer(serializers.Serializer):
+    booking_id = serializers.IntegerField(min_value=1)
+
+
+class CreatePaymentOrderResponseSerializer(serializers.Serializer):
+    booking_id = serializers.IntegerField()
+    payment_id = serializers.IntegerField()
+    razorpay_order_id = serializers.CharField()
+    razorpay_key_id = serializers.CharField()
+    amount = serializers.IntegerField(
+        help_text="Payment amount in paise."
+    )
+    currency = serializers.CharField()
+
+
+class VerifyPaymentRequestSerializer(serializers.Serializer):
+    booking_id = serializers.IntegerField(min_value=1)
+    razorpay_order_id = serializers.CharField()
+    razorpay_payment_id = serializers.CharField()
+    razorpay_signature = serializers.CharField(write_only=True)
+
+
+class VerifyPaymentResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    booking_id = serializers.IntegerField()
+    payment_id = serializers.IntegerField()
+    payment_status = serializers.CharField()
+    booking_status = serializers.CharField()
+
+
+class RazorpayWebhookResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    event = serializers.CharField(required=False)
