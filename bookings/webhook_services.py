@@ -9,9 +9,7 @@ from django.db import transaction
 from rest_framework.exceptions import ValidationError
 from bookings.services import transition_booking
 from bookings.models import Booking, Payment, Hold, ProcessedWebhookEvent
-from bookings.ticket_services import generate_tickets
-from bookings.email_services import send_booking_confirmation_email
-from bookings.email_services import send_confirmation_safely
+from bookings.outbox import create_booking_fulfillment_outbox
 
 
 def verify_webhook_signature(*, payload, signature):
@@ -183,6 +181,8 @@ def process_razorpay_webhook(*, payload, signature, event_id):
                     status=Hold.Status.ACTIVE
                 ).update(status=Hold.Status.CONVERTED)
 
+                create_booking_fulfillment_outbox(booking)
+
                 logger.info(
                     "Payment captured and booking %s confirmed",
                     booking.id,
@@ -198,18 +198,9 @@ def process_razorpay_webhook(*, payload, signature, event_id):
                     "A different payment has already succeeded."
                 )
 
-            # Ensure tickets exist for every successful payment.
-            tickets = generate_tickets(booking.id)
-
             logger.info(
-                "Tickets ensured for booking %s. Ticket count: %s",
+                "Payment captured for booking %s; fulfillment will be handled asynchronously via outbox.",
                 booking.id,
-                len(tickets),
-            )
-
-            transaction.on_commit(
-                lambda booking_id=booking.id:
-                    send_confirmation_safely(booking_id)
             )
 
         elif event_type == "payment.failed":

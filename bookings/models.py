@@ -1,6 +1,7 @@
 import uuid
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from events.models import EventSeat
 from django.db.models import Q #add filter feature to django with OR ,NOT
 
@@ -212,6 +213,77 @@ class ProcessedWebhookEvent(models.Model):
 
     def __str__(self):
         return f"{self.event_type}: {self.event_id}"
+
+
+class OutboxEvent(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        DISPATCHED = "dispatched", "Dispatched"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    event_type = models.CharField(max_length=64)
+    aggregate_id = models.BigIntegerField(db_index=True)
+    idempotency_key = models.CharField(max_length=255, unique=True, db_index=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    payload = models.JSONField(default=dict, blank=True)
+    attempts = models.PositiveIntegerField(default=0)
+    available_at = models.DateTimeField(default=timezone.now)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    dispatched_at = models.DateTimeField(null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["status", "available_at", "created_at"]),
+            models.Index(fields=["event_type", "aggregate_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type}:{self.aggregate_id} ({self.status})"
+
+
+class BookingEmailDelivery(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        SENT = "sent", "Sent"
+        FAILED = "failed", "Failed"
+
+    booking = models.OneToOneField(
+        Booking,
+        on_delete=models.PROTECT,
+        related_name="email_delivery",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    attempts = models.PositiveIntegerField(default=0)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True, default="")
+    locked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["status", "updated_at"]),
+        ]
+
+    def __str__(self):
+        return f"Email delivery for booking {self.booking_id}: {self.status}"
 
 
 class Ticket(models.Model):

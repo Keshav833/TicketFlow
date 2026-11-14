@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 from datetime import timedelta
 
 import os
+import sys
 
 from dotenv import load_dotenv
 
@@ -33,6 +34,25 @@ if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY is missing from the environment.")
 
 # SECURITY WARNING: don't run with debug turned on in production!
+
+TIME_ZONE = "Asia/Kolkata"
+
+# Celery Configuration
+CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
+
+IS_RUNNING_TESTS = "pytest" in sys.argv[0] or "test" in sys.argv
+CELERY_TASK_ALWAYS_EAGER = (
+    os.getenv("CELERY_TASK_ALWAYS_EAGER", "").lower() in {"1", "true", "yes"}
+    or IS_RUNNING_TESTS
+)
+CELERY_TASK_EAGER_PROPAGATES = True
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
 DEBUG = True
 
 ALLOWED_HOSTS = []

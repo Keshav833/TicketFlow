@@ -12,10 +12,8 @@ from rest_framework.exceptions import ValidationError
 from bookings.services import transition_booking
 
 from bookings.models import Booking, Payment, Hold
+from bookings.outbox import create_booking_fulfillment_outbox
 from bookings.services import start_booking_payment
-from bookings.ticket_services import generate_tickets
-from bookings.email_services import send_booking_confirmation_email
-from bookings.email_services import send_confirmation_safely
 
 
 
@@ -396,19 +394,13 @@ def verify_razorpay_payment(
             status=Hold.Status.ACTIVE
         ).update(status=Hold.Status.CONVERTED)
 
-        tickets = generate_tickets(booking.id)
+        create_booking_fulfillment_outbox(booking)
 
         logger.info(
             "Payment successful and booking %s confirmed. "
-            "Payment ID: %s, Tickets generated: %s",
+            "Payment ID: %s",
             booking.id,
             payment.id,
-            len(tickets),
-        )
-
-        transaction.on_commit(
-            lambda booking_id=booking.id:
-                send_confirmation_safely(booking_id)
         )
 
     return {
