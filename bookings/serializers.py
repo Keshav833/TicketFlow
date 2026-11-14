@@ -139,9 +139,14 @@ class CreatePaymentOrderResponseSerializer(serializers.Serializer):
 
 class VerifyPaymentRequestSerializer(serializers.Serializer):
     booking_id = serializers.IntegerField(min_value=1)
-    razorpay_order_id = serializers.CharField()
-    razorpay_payment_id = serializers.CharField()
-    razorpay_signature = serializers.CharField(write_only=True)
+    razorpay_order_id = serializers.CharField(max_length=100, trim_whitespace=True)
+    razorpay_payment_id = serializers.CharField(max_length=255, trim_whitespace=True)
+    razorpay_signature = serializers.CharField(
+        max_length=128,
+        min_length=64,
+        trim_whitespace=True,
+        write_only=True,
+    )
 
 
 class VerifyPaymentResponseSerializer(serializers.Serializer):

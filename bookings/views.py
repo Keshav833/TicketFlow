@@ -1,17 +1,12 @@
-from django.shortcuts import render
-
 from rest_framework import generics,status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.exceptions import ValidationError
-from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAdminUser
-from rest_framework.throttling import ScopedRateThrottle
 from drf_spectacular.utils import extend_schema
+from config.throttling import SafeScopedRateThrottle
 
-from .models import Ticket
 from .serializers import (
     BookingSerializer,
     CreateHoldSerializer,
@@ -39,6 +34,7 @@ from .services import create_seat_hold
 class BookingListView(generics.ListAPIView):
     serializer_class = BookingSerializer
     permission_classes = [IsAuthenticated]
+    throttle_scope = "booking_read"
 
     def get_queryset(self):
         # Prevent schema generation from querying with AnonymousUser.
@@ -60,6 +56,7 @@ class BookingListView(generics.ListAPIView):
 class BookingDetailView(generics.RetrieveAPIView):
     serializer_class = BookingSerializer
     permission_classes = [IsAuthenticated]
+    throttle_scope = "booking_read"
 
     def get_queryset(self):
         return (
@@ -82,6 +79,7 @@ class BookingDetailView(generics.RetrieveAPIView):
 )
 class CreateHoldView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_scope = "hold_create"
 
     def post(self, request):
         request_serializer = CreateHoldSerializer(
@@ -112,26 +110,18 @@ class CreateHoldView(APIView):
 )
 class CreatePaymentOrderView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_scope = "payment_order"
 
     def post(self, request):
-        booking_id = request.data.get("booking_id")
+        request_serializer = CreatePaymentOrderRequestSerializer(
+            data=request.data
+        )
+        request_serializer.is_valid(raise_exception=True)
 
-        if not booking_id:
-            return Response(
-                {"detail": "booking_id is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            result = create_razorpay_order(
-                user=request.user,
-                booking_id=booking_id,
-            )
-        except ValidationError as exc:
-            return Response(
-                {"detail": exc.detail},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        result = create_razorpay_order(
+            user=request.user,
+            **request_serializer.validated_data,
+        )
 
         return Response(result, status=status.HTTP_201_CREATED)
 
@@ -146,42 +136,18 @@ class CreatePaymentOrderView(APIView):
 )
 class VerifyPaymentView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_scope = "payment_verify"
 
     def post(self, request):
-        required_fields = [
-            "booking_id",
-            "razorpay_order_id",
-            "razorpay_payment_id",
-            "razorpay_signature",
-        ]
+        request_serializer = VerifyPaymentRequestSerializer(
+            data=request.data
+        )
+        request_serializer.is_valid(raise_exception=True)
 
-        missing_fields = [
-            field for field in required_fields
-            if not request.data.get(field)
-        ]
-
-        if missing_fields:
-            return Response(
-                {
-                    "detail": "Missing required fields.",
-                    "fields": missing_fields,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            result = verify_razorpay_payment(
-                user=request.user,
-                booking_id=request.data["booking_id"],
-                razorpay_order_id=request.data["razorpay_order_id"],
-                razorpay_payment_id=request.data["razorpay_payment_id"],
-                razorpay_signature=request.data["razorpay_signature"],
-            )
-        except ValidationError as exc:
-            return Response(
-                {"detail": exc.detail},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        result = verify_razorpay_payment(
+            user=request.user,
+            **request_serializer.validated_data,
+        )
 
         return Response(result, status=status.HTTP_200_OK)
 
@@ -204,22 +170,17 @@ class VerifyPaymentView(APIView):
 class RazorpayWebhookView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = []
 
     def post(self, request):
         signature = request.headers.get("X-Razorpay-Signature")
         event_id = request.headers.get("X-Razorpay-Event-Id")
 
-        try:
-            result = process_razorpay_webhook(
-                payload=request.body,
-                signature=signature,
-                event_id=event_id,
-            )
-        except ValidationError as exc:
-            return Response(
-                {"detail": exc.detail},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        result = process_razorpay_webhook(
+            payload=request.body,
+            signature=signature,
+            event_id=event_id,
+        )
 
         return Response(result, status=status.HTTP_200_OK)
 
@@ -239,7 +200,7 @@ class RazorpayWebhookView(APIView):
 )
 class TicketCheckInView(APIView):
     permission_classes = [IsAdminUser]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SafeScopedRateThrottle]
     throttle_scope = "ticket_checkin"
 
     def post(self, request):

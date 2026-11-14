@@ -3,12 +3,30 @@ from rest_framework import generics , permissions
 #  permissions (security rules to control who can access those views).
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
 from drf_spectacular.utils import extend_schema
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from config.throttling import SafeScopedRateThrottle
 from .serializers import RegisterSerializer, MeSerializer
-from .serializers import RegisterSerializer
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = [SafeScopedRateThrottle]
+    throttle_scope = "registration"
+
+
+class LoginView(TokenObtainPairView):
+    permission_classes = [AllowAny]
+    throttle_classes = [SafeScopedRateThrottle]
+    throttle_scope = "login"
+
+
+class RefreshTokenView(TokenRefreshView):
+    permission_classes = [AllowAny]
+    throttle_classes = [SafeScopedRateThrottle]
+    throttle_scope = "auth_refresh"
+
 
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]

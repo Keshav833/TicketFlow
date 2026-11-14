@@ -34,7 +34,50 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY is missing from the environment.")
 
-# SECURITY WARNING: don't run with debug turned on in production!
+def _env_bool(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+DEBUG = _env_bool("DJANGO_DEBUG", True)
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        "DJANGO_ALLOWED_HOSTS",
+        "localhost,127.0.0.1" if DEBUG else "",
+    ).split(",")
+    if host.strip()
+]
+
+if not DEBUG and not ALLOWED_HOSTS:
+    raise RuntimeError("DJANGO_ALLOWED_HOSTS must be set when DJANGO_DEBUG is false.")
+
+SECURE_SSL_REDIRECT = _env_bool("DJANGO_SECURE_SSL_REDIRECT", not DEBUG)
+SESSION_COOKIE_SECURE = _env_bool("DJANGO_SESSION_COOKIE_SECURE", not DEBUG)
+CSRF_COOKIE_SECURE = _env_bool("DJANGO_CSRF_COOKIE_SECURE", not DEBUG)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+SECURE_HSTS_SECONDS = int(os.getenv(
+    "DJANGO_SECURE_HSTS_SECONDS",
+    "31536000" if not DEBUG else "0",
+))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool(
+    "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    False,
+)
+SECURE_HSTS_PRELOAD = _env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+# Only enable this behind a trusted proxy that overwrites this header.
+if _env_bool("DJANGO_TRUST_X_FORWARDED_PROTO", False):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 TIME_ZONE = "Asia/Kolkata"
 
@@ -96,12 +139,6 @@ CACHES = {
     },
 }
 
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
-
-
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
@@ -116,6 +153,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
+    "rest_framework_simplejwt.token_blacklist",
     "django_filters",
     'core',
     'users',
@@ -157,12 +195,27 @@ REST_FRAMEWORK = {
 
     # Rate limiting
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.ScopedRateThrottle",
+        "config.throttling.SafeScopedRateThrottle",
     ],
 
     "DEFAULT_THROTTLE_RATES": {
-        "ticket_checkin": "10/minute",
+        "login": os.getenv("THROTTLE_LOGIN_RATE", "5/minute"),
+        "auth_refresh": os.getenv("THROTTLE_AUTH_REFRESH_RATE", "30/minute"),
+        "registration": os.getenv("THROTTLE_REGISTRATION_RATE", "5/hour"),
+        "event_browsing": os.getenv("THROTTLE_EVENT_BROWSING_RATE", "100/minute"),
+        "seat_availability": os.getenv(
+            "THROTTLE_SEAT_AVAILABILITY_RATE",
+            "60/minute",
+        ),
+        "booking_read": os.getenv("THROTTLE_BOOKING_READ_RATE", "60/minute"),
+        "hold_create": os.getenv("THROTTLE_HOLD_CREATE_RATE", "10/minute"),
+        "payment_order": os.getenv("THROTTLE_PAYMENT_ORDER_RATE", "5/minute"),
+        "payment_verify": os.getenv("THROTTLE_PAYMENT_VERIFY_RATE", "10/minute"),
+        "ticket_checkin": os.getenv("THROTTLE_TICKET_CHECKIN_RATE", "10/minute"),
     },
+    # Do not trust client-supplied X-Forwarded-For unless a trusted proxy count
+    # is explicitly configured and the proxy sanitizes that header.
+    "NUM_PROXIES": int(os.getenv("DRF_NUM_PROXIES", "0")),
 
     "EXCEPTION_HANDLER": "config.exceptions.custom_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -178,6 +231,8 @@ SPECTACULAR_SETTINGS = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 TEMPLATES = [

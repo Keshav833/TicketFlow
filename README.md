@@ -211,6 +211,86 @@ Run the caching tests with:
 pytest events/test_cache.py
 ```
 
+## API rate limits and security
+
+DRF's `ScopedRateThrottle` uses Django's configured default cache. In
+production, that is Redis database 2 (shared with response caching); tests use
+an isolated in-memory cache. Authenticated requests are identified by user ID,
+while anonymous requests are identified by client IP. `DRF_NUM_PROXIES`
+defaults to `0`, so arbitrary `X-Forwarded-For` values are not trusted. Set it
+to the number of trusted, header-sanitizing proxies only when the deployment
+proxy overwrites forwarded-client headers.
+
+Throttle scopes and default limits are configurable through environment
+variables:
+
+| Scope | Default | Configuration |
+|---|---:|---|
+| Login | 5/minute | `THROTTLE_LOGIN_RATE` |
+| Registration | 5/hour | `THROTTLE_REGISTRATION_RATE` |
+| Token refresh | 30/minute | `THROTTLE_AUTH_REFRESH_RATE` |
+| Event and venue browsing | 100/minute | `THROTTLE_EVENT_BROWSING_RATE` |
+| Seat availability | 60/minute | `THROTTLE_SEAT_AVAILABILITY_RATE` |
+| Booking reads | 60/minute | `THROTTLE_BOOKING_READ_RATE` |
+| Seat holds | 10/minute | `THROTTLE_HOLD_CREATE_RATE` |
+| Payment order creation | 5/minute | `THROTTLE_PAYMENT_ORDER_RATE` |
+| Payment verification | 10/minute | `THROTTLE_PAYMENT_VERIFY_RATE` |
+| Staff check-in | 10/minute | `THROTTLE_TICKET_CHECKIN_RATE` |
+
+Razorpay webhooks are intentionally excluded from generic throttling so
+provider retries are not blocked; webhook signatures and event-idempotency
+checks remain required.
+
+Events, venues, seat availability, health, registration, login, refresh, and
+the signed payment webhook are public. Booking listing/detail, seat holds,
+payment order creation, and payment verification require JWT authentication.
+Bookings are filtered by their owner and payment services check booking
+ownership. Ticket check-in requires an authenticated staff user; there is no
+public ticket lookup endpoint.
+
+Input validation uses explicit DRF serializer fields. Registration requires a
+valid email and checks passwords against Django's configured validators.
+Hold creation rejects duplicate or cross-event seat IDs and limits a booking
+to ten seats. Payment endpoints validate identifiers and derive price/currency
+from server-side records/provider verification, not frontend-supplied amounts.
+Event search is limited to 200 characters and pagination uses a fixed page
+size of ten. Booking response fields are read-only to clients.
+
+Validation errors use the API's standard error envelope, for example:
+
+```json
+{
+  "success": false,
+  "status_code": 400,
+  "message": "Validation failed.",
+  "errors": {"email": ["Enter a valid email address."]}
+}
+```
+
+Rate-limit responses use HTTP 429 and the same envelope with
+`"status_code": 429`. Do not log passwords, tokens, Razorpay secrets,
+signatures, or complete webhook bodies.
+
+For production set `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS`, and
+`SECRET_KEY` through the environment. HTTPS redirect, secure session/CSRF
+cookies, and HSTS are enabled by default when debug is disabled; tune them
+with the `DJANGO_SECURE_*` variables for the deployment. Set
+`DJANGO_CSRF_TRUSTED_ORIGINS` for trusted admin/browser origins and enable
+`DJANGO_TRUST_X_FORWARDED_PROTO` only behind a trusted proxy. This API uses
+bearer JWTs rather than cookie authentication; use a same-origin frontend
+proxy or configure an exact CORS allowlist at the deployment gateway instead
+of allowing every origin.
+
+Refresh tokens rotate and previous refresh tokens are blacklisted. Apply
+Django migrations when deploying this setting because SimpleJWT's token
+blacklist app stores outstanding and revoked refresh tokens.
+
+Run the security-focused tests with:
+
+```bash
+pytest accounts/test_security.py bookings/tests/test_api_security.py
+```
+
 ---
 
 ##  Results & Metrics

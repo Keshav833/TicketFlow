@@ -122,6 +122,55 @@ def test_event_listing_cache_varies_by_filters_and_page(inventory):
     assert page_one.data["results"][0]["id"] != page_two.data["results"][0]["id"]
 
 
+@pytest.mark.django_db
+def test_search_length_is_bounded_and_page_size_is_fixed(inventory):
+    venue, event, _, _ = inventory
+    for index in range(10):
+        Event.objects.create(
+            name=f"Page Limit Event {index}",
+            venue=venue,
+            starts_at=event.starts_at + timedelta(days=index + 1),
+            ends_at=event.ends_at + timedelta(days=index + 1),
+        )
+    client = APIClient()
+
+    oversized_search = client.get(
+        "/api/events/",
+        {"search": "x" * 201},
+    )
+    assert oversized_search.status_code == 400
+
+    oversized_page_size = client.get(
+        "/api/events/",
+        {"page_size": 1000},
+    )
+    assert oversized_page_size.status_code == 200
+    assert len(oversized_page_size.data["results"]) == 10
+
+
+@pytest.mark.django_db
+def test_event_browsing_scope_returns_429_after_configured_limit(inventory):
+    client = APIClient()
+    for _ in range(100):
+        assert client.get("/api/events/").status_code == 200
+
+    throttled = client.get("/api/events/")
+    assert throttled.status_code == 429
+    assert throttled.data["status_code"] == 429
+
+
+@pytest.mark.django_db
+def test_seat_availability_scope_returns_429_after_configured_limit(inventory):
+    _, event, _, _ = inventory
+    client = APIClient()
+    endpoint = f"/api/events/{event.id}/seats/"
+    for _ in range(60):
+        assert client.get(endpoint).status_code == 200
+
+    throttled = client.get(endpoint)
+    assert throttled.status_code == 429
+
+
 @pytest.mark.django_db(transaction=True)
 def test_event_create_update_delete_invalidate_listing_cache(inventory):
     venue, event, _, _ = inventory

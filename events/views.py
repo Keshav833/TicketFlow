@@ -4,11 +4,12 @@ from django.db.models import Exists, OuterRef
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from django.utils import timezone
 from .models import Event, EventSeat, Seat, Venue
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
-from .filters import EventFilter
+from .filters import BoundedEventSearchFilter, EventFilter
 from bookings.models import Booking, BookingItem, Hold
 from drf_spectacular.utils import extend_schema
 
@@ -33,10 +34,12 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
     # Since our serializer reads venue.name, this helps avoid an extra database query for every event.
     queryset = Event.objects.select_related("venue").all()
     serializer_class = EventSerializer
+    permission_classes = [AllowAny]
+    throttle_scope = "event_browsing"
 
     filter_backends = [
         DjangoFilterBackend,
-        filters.SearchFilter,
+        BoundedEventSearchFilter,
         filters.OrderingFilter,
     ]
 
@@ -102,6 +105,8 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
 class VenueViewSet(viewsets.ReadOnlyModelViewSet): #it automatically allows users to view a list of all venues or view a single venue's details (using your VenueSerializer). 
     queryset = Venue.objects.all().order_by("id")
     serializer_class = VenueSerializer
+    permission_classes = [AllowAny]
+    throttle_scope = "event_browsing"
 
     @action(detail=True, methods=["get"])
     def seats(self, request, pk=None):
@@ -130,6 +135,8 @@ class VenueViewSet(viewsets.ReadOnlyModelViewSet): #it automatically allows user
 )
 class EventSeatListView(generics.ListAPIView):
     serializer_class = EventSeatSerializer
+    permission_classes = [AllowAny]
+    throttle_scope = "seat_availability"
 
     def list(self, request, *args, **kwargs):
         key, version_key, version = seat_availability_cache_key(

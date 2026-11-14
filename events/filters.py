@@ -1,6 +1,7 @@
 import django_filters
 from django.db.models import Q
 from rest_framework.exceptions import ValidationError
+from rest_framework import filters
 from .models import Event
 
 
@@ -39,3 +40,18 @@ class EventFilter(django_filters.FilterSet):
             })
 
         return super().filter_queryset(queryset)
+
+
+class BoundedEventSearchFilter(filters.SearchFilter):
+    max_search_length = 200
+
+    def get_search_terms(self, request):
+        search_terms = request.query_params.get(self.search_param, "")
+        if len(search_terms) > self.max_search_length:
+            raise ValidationError({
+                self.search_param: (
+                    f"Search text must be at most "
+                    f"{self.max_search_length} characters."
+                )
+            })
+        return super().get_search_terms(request)
