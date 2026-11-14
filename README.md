@@ -154,6 +154,63 @@ The Vite development server proxies API calls to Django at `http://127.0.0.1:800
 docker compose exec web pytest
 ```
 
+## Redis response caching
+
+TicketFlow uses Django's cache framework with the existing Redis service to
+reduce repeated database work on public event browsing. Celery continues to
+use Redis database 0 as its broker and database 1 as its result backend;
+Django caching uses database 2. Set `REDIS_URL` to the Redis connection URL
+(for example, `redis://localhost:6379`). The same URL is used for all three
+Redis databases, and credentials should be supplied through the environment,
+not committed to source control.
+
+The cached endpoints are:
+
+| Endpoint | Cached data | Default lifetime |
+|---|---|---:|
+| `GET /api/events/` | Serialized listing, including pagination metadata | 300 seconds |
+| `GET /api/events/<id>/` | Serialized event detail | 300 seconds |
+| `GET /api/events/<id>/seats/` | Serialized seat availability response | 20 seconds |
+
+Listing keys include a hash of the complete query string and the requesting
+user identity, so searches, filters, ordering, pages, and users do not share
+responses. Seat availability keys are specific to the event, query string,
+and requester. Cache values contain serialized response data, not QuerySets
+or model instances.
+
+Configure lifetimes with `EVENT_LIST_CACHE_TTL` and
+`SEAT_AVAILABILITY_CACHE_TTL`. The default Redis cache connection and socket
+timeouts are one second and can be adjusted with `REDIS_CACHE_CONNECT_TIMEOUT`
+and `REDIS_CACHE_TIMEOUT`; `REDIS_CACHE_MAX_CONNECTIONS` defaults to 100.
+During tests, Django uses an isolated in-memory cache, so tests do not require
+a running Redis container.
+
+Event listing/detail cache versions are advanced after an event is created,
+updated, or deleted, or its venue changes. Seat-availability versions are
+advanced after event seating, seat configuration, or ticket-tier changes;
+when a hold is created, changed, deleted, or expires; and when a booking's
+confirmation changes seat availability. Versioned keys make old responses
+unreachable after invalidation and prevent an in-flight older read from
+repopulating the current version.
+
+Redis is only a performance optimization. If a cache operation fails, the
+request falls back to the database and logs the cache failure. Seat holds
+continue to validate availability against PostgreSQL inside the existing
+transaction and row locks; cached availability is never used to authorize a
+booking.
+
+Request flow: a read checks Django's cache first; on a miss, TicketFlow reads
+and serializes from PostgreSQL, then caches that response. A committed
+booking/seat/event change advances the relevant cache version. If Redis is
+unavailable, the same request is served from PostgreSQL without relying on
+the cache.
+
+Run the caching tests with:
+
+```bash
+pytest events/test_cache.py
+```
+
 ---
 
 ##  Results & Metrics

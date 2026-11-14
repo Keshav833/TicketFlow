@@ -1,4 +1,5 @@
 from django_filters.rest_framework import DjangoFilterBackend
+from django.conf import settings
 from django.db.models import Exists, OuterRef
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
@@ -16,6 +17,13 @@ from .serializers import (
     EventSerializer,
     SeatSerializer,
     VenueSerializer,
+)
+from .cache import (
+    CACHE_MISS,
+    event_listing_cache_key,
+    get_cached_response,
+    seat_availability_cache_key,
+    set_cached_response,
 )
 
 # ReadOnlyModelViewSet automatically provides the list and retrieve actions.
@@ -52,6 +60,42 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
 
     ordering = ["starts_at"]
 
+    def list(self, request, *args, **kwargs):
+        key, version_key, version = event_listing_cache_key(request)
+        cached_data = get_cached_response(key)
+        if cached_data is not CACHE_MISS:
+            return Response(cached_data)
+
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == 200:
+            set_cached_response(
+                key,
+                version_key,
+                version,
+                response.data,
+                settings.EVENT_LIST_CACHE_TTL,
+            )
+        return response
+
+    def retrieve(self, request, *args, **kwargs):
+        key, version_key, version = event_listing_cache_key(request)
+        event_id = kwargs.get(self.lookup_field, kwargs.get("pk"))
+        detail_key = f"ticketflow:event-detail:{event_id}:{key}"
+        cached_data = get_cached_response(detail_key)
+        if cached_data is not CACHE_MISS:
+            return Response(cached_data)
+
+        response = super().retrieve(request, *args, **kwargs)
+        if response.status_code == 200:
+            set_cached_response(
+                detail_key,
+                version_key,
+                version,
+                response.data,
+                settings.EVENT_LIST_CACHE_TTL,
+            )
+        return response
+
 
 # creates a read-only API endpoint to fetch venue details 
 # and see a organized list of all physical seats inside a specific venue
@@ -86,6 +130,26 @@ class VenueViewSet(viewsets.ReadOnlyModelViewSet): #it automatically allows user
 )
 class EventSeatListView(generics.ListAPIView):
     serializer_class = EventSeatSerializer
+
+    def list(self, request, *args, **kwargs):
+        key, version_key, version = seat_availability_cache_key(
+            self.kwargs["event_id"],
+            request,
+        )
+        cached_data = get_cached_response(key)
+        if cached_data is not CACHE_MISS:
+            return Response(cached_data)
+
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == 200:
+            set_cached_response(
+                key,
+                version_key,
+                version,
+                response.data,
+                settings.SEAT_AVAILABILITY_CACHE_TTL,
+            )
+        return response
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):

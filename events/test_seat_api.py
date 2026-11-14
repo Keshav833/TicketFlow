@@ -83,7 +83,7 @@ def test_list_event_seats(inventory):
     assert response.data["results"][0]["availability_status"] == "available"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_event_seat_availability_tracks_active_holds_and_sales(inventory):
     _, event, _, event_seat = inventory
     user = get_user_model().objects.create_user(username="seat-status-user")

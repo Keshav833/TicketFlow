@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from events.cache import invalidate_seat_availability
 from events.models import EventSeat
 from .models import Booking, BookingItem, Hold
 
@@ -132,6 +133,7 @@ def create_seat_hold(*, user, event_id, event_seat_ids):
         for seat in seats
     ])
 
+    invalidate_seat_availability(event_id)
     return booking
 
 
@@ -155,6 +157,7 @@ def expire_stale_holds():
         return 0
 
     hold_ids = [hold.id for hold in expired_holds]
+    event_ids = {hold.event_seat.event_id for hold in expired_holds}
     booking_ids = {
         hold.booking_id for hold in expired_holds
     }
@@ -179,6 +182,9 @@ def expire_stale_holds():
             booking=booking,
             new_status=Booking.Status.EXPIRED,
         )
+
+    for event_id in event_ids:
+        invalidate_seat_availability(event_id)
 
     return len(hold_ids)
 
@@ -236,6 +242,11 @@ def start_booking_payment(*, user, booking_id):
                     status=Hold.Status.ACTIVE,
                     expires_at__lte=now,
                 ).update(status=Hold.Status.EXPIRED)
+                for event_id in booking.items.values_list(
+                    "event_seat__event_id",
+                    flat=True,
+                ).distinct():
+                    invalidate_seat_availability(event_id)
 
                 transition_booking(
                     booking=booking,

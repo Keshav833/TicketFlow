@@ -6,7 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from bookings.email_services import send_booking_confirmation_email
-from bookings.models import Booking, BookingEmailDelivery, OutboxEvent, Payment, Ticket
+from bookings.models import Booking, BookingEmailDelivery, OutboxEvent, Payment
 from bookings.outbox import (
     BOOKING_FULFILLMENT_EVENT,
     claim_pending_outbox_events,
@@ -27,10 +27,11 @@ def dispatch_pending_outbox_events(self):
     for event in events:
         try:
             if event.event_type == BOOKING_FULFILLMENT_EVENT:
+                mark_outbox_event_dispatched(event)
                 fulfill_confirmed_booking.delay(event.id)
             else:
                 logger.warning("Unsupported outbox event type: %s", event.event_type)
-            mark_outbox_event_dispatched(event)
+                mark_outbox_event_completed(event, error="unsupported event type")
         except Exception as exc:
             logger.exception("Failed to dispatch outbox event %s", event.id)
             mark_outbox_event_failed(event, error=str(exc), retry_minutes=2)
@@ -42,7 +43,7 @@ def dispatch_pending_outbox_events(self):
 def recover_stale_outbox_events(self):
     threshold = timezone.now() - timedelta(minutes=10)
     rows = OutboxEvent.objects.filter(
-        status=OutboxEvent.Status.PROCESSING,
+        status__in=[OutboxEvent.Status.PROCESSING, OutboxEvent.Status.DISPATCHED],
         locked_at__lt=threshold,
     ).update(status=OutboxEvent.Status.PENDING, locked_at=None)
     logger.info("Recovered %s stale outbox events", rows)
@@ -51,47 +52,70 @@ def recover_stale_outbox_events(self):
 
 @shared_task(bind=True, max_retries=6, retry_backoff=60)
 def fulfill_confirmed_booking(self, outbox_event_id):
-    event = OutboxEvent.objects.select_for_update().get(pk=outbox_event_id)
-    booking = Booking.objects.filter(pk=event.aggregate_id).first()
+    event = None
+    try:
+        with transaction.atomic():
+            event = OutboxEvent.objects.select_for_update().get(pk=outbox_event_id)
+            if event.status == OutboxEvent.Status.COMPLETED:
+                return {"status": "already_completed"}
+            if event.status == OutboxEvent.Status.PROCESSING:
+                threshold = timezone.now() - timedelta(minutes=10)
+                if event.locked_at and event.locked_at >= threshold:
+                    return {"status": "already_processing"}
 
-    if booking is None:
-        logger.warning("Outbox fulfillment skipped for missing booking %s", event.aggregate_id)
-        mark_outbox_event_completed(event, error="booking missing")
-        return {"status": "skipped_missing_booking"}
+            event.status = OutboxEvent.Status.PROCESSING
+            event.locked_at = timezone.now()
+            event.save(update_fields=["status", "locked_at", "updated_at"])
 
-    if booking.status != Booking.Status.CONFIRMED:
-        logger.info("Outbox fulfillment skipped for unconfirmed booking %s", booking.id)
-        mark_outbox_event_completed(event, error="booking not confirmed")
-        return {"status": "skipped_unconfirmed_booking"}
+            booking = Booking.objects.filter(pk=event.aggregate_id).first()
+            if booking is None:
+                logger.warning(
+                    "Outbox fulfillment skipped for missing booking %s",
+                    event.aggregate_id,
+                )
+                mark_outbox_event_completed(event, error="booking missing")
+                return {"status": "skipped_missing_booking"}
 
-    payment = Payment.objects.filter(
-        booking=booking,
-        status=Payment.Status.SUCCEEDED,
-    ).first()
-    if payment is None:
-        logger.warning("Outbox fulfillment blocked for booking %s without successful payment", booking.id)
-        raise RuntimeError("booking payment not succeeded")
+            if booking.status != Booking.Status.CONFIRMED:
+                logger.info("Outbox fulfillment skipped for unconfirmed booking %s", booking.id)
+                mark_outbox_event_completed(event, error="booking not confirmed")
+                return {"status": "skipped_unconfirmed_booking"}
 
-    with transaction.atomic():
-        booking = Booking.objects.select_for_update().get(pk=booking.id)
-        existing_tickets = Ticket.objects.filter(booking_item__booking=booking).count()
-        if existing_tickets == 0:
+            payment = Payment.objects.filter(
+                booking=booking,
+                status=Payment.Status.SUCCEEDED,
+            ).first()
+            if payment is None:
+                raise RuntimeError("booking payment not succeeded")
+
+            booking = Booking.objects.select_for_update().get(pk=booking.id)
             tickets = generate_tickets(booking.id)
             logger.info("Generated %s tickets for booking %s via outbox", len(tickets), booking.id)
+
+            delivery, _ = BookingEmailDelivery.objects.get_or_create(booking=booking)
+
+        if delivery.status == BookingEmailDelivery.Status.SENT:
+            logger.info("Email already sent for booking %s", booking.id)
         else:
-            logger.info("Ticket generation skipped for booking %s because tickets already exist", booking.id)
+            send_booking_confirmation_email_task.delay(booking.id)
 
-    delivery, _ = BookingEmailDelivery.objects.get_or_create(booking=booking)
-    if delivery.status == BookingEmailDelivery.Status.SENT:
-        logger.info("Email already sent for booking %s", booking.id)
-    else:
-        send_booking_confirmation_email_task.delay(booking.id)
+        mark_outbox_event_completed(event)
+        return {"status": "fulfilled", "booking_id": booking.id}
+    except Exception as exc:
+        logger.exception("Fulfillment failed for outbox event %s", outbox_event_id)
+        if event is not None:
+            event = OutboxEvent.objects.get(pk=outbox_event_id)
+            mark_outbox_event_failed(event, error=str(exc), retry_minutes=2)
+        raise
 
-    mark_outbox_event_completed(event)
-    return {"status": "fulfilled", "booking_id": booking.id}
 
-
-@shared_task(bind=True, max_retries=5, retry_backoff=60)
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    max_retries=5,
+)
 def send_booking_confirmation_email_task(self, booking_id):
     booking = Booking.objects.select_related("user").filter(pk=booking_id).first()
     if booking is None:
@@ -106,6 +130,12 @@ def send_booking_confirmation_email_task(self, booking_id):
         delivery = BookingEmailDelivery.objects.select_for_update().get(pk=delivery.pk)
         if delivery.status == BookingEmailDelivery.Status.SENT:
             return {"status": "already_sent", "booking_id": booking_id}
+        if (
+            delivery.status == BookingEmailDelivery.Status.PROCESSING
+            and delivery.locked_at
+            and delivery.locked_at >= timezone.now() - timedelta(minutes=15)
+        ):
+            return {"status": "already_processing", "booking_id": booking_id}
         delivery.status = BookingEmailDelivery.Status.PROCESSING
         delivery.attempts += 1
         delivery.locked_at = timezone.now()
@@ -143,12 +173,34 @@ def send_booking_confirmation_email_task(self, booking_id):
 @shared_task(bind=True, max_retries=3, retry_backoff=30)
 def recover_stale_email_deliveries(self):
     threshold = timezone.now() - timedelta(minutes=15)
-    rows = BookingEmailDelivery.objects.filter(
-        status=BookingEmailDelivery.Status.PROCESSING,
-        locked_at__lt=threshold,
-    ).update(status=BookingEmailDelivery.Status.PENDING, locked_at=None)
-    logger.info("Recovered %s stale email deliveries", rows)
-    return rows
+    with transaction.atomic():
+        stale_booking_ids = list(
+            BookingEmailDelivery.objects.select_for_update(skip_locked=True)
+            .filter(
+                status=BookingEmailDelivery.Status.PROCESSING,
+                locked_at__lt=threshold,
+            )
+            .values_list("booking_id", flat=True)
+        )
+        if stale_booking_ids:
+            BookingEmailDelivery.objects.filter(
+                booking_id__in=stale_booking_ids,
+            ).update(status=BookingEmailDelivery.Status.PENDING, locked_at=None)
+
+        pending_booking_ids = list(
+            BookingEmailDelivery.objects.filter(
+                status=BookingEmailDelivery.Status.PENDING,
+            )
+            .order_by("updated_at")
+            .values_list("booking_id", flat=True)[:100]
+        )
+
+    booking_ids = list(dict.fromkeys(stale_booking_ids + pending_booking_ids))
+    for booking_id in booking_ids:
+        send_booking_confirmation_email_task.delay(booking_id)
+
+    logger.info("Queued %s pending email deliveries", len(booking_ids))
+    return {"queued": len(booking_ids), "recovered": len(stale_booking_ids)}
 
 
 @shared_task(bind=True, max_retries=5, retry_backoff=60)

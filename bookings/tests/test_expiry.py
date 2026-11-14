@@ -9,6 +9,8 @@ from rest_framework.exceptions import ValidationError
 from bookings.services import start_booking_payment
 from unittest.mock import patch
 from django.db import transaction
+from config.celery import app as celery_app
+from bookings.tasks import expire_stale_holds_task
 
 from events.models import (
     Venue,
@@ -117,6 +119,22 @@ class ExpireStaleHoldsTests(TestCase):
         self.assertEqual(count, 0)
         self.assertEqual(hold.status, Hold.Status.ACTIVE)
         self.assertEqual(booking.status, Booking.Status.HELD)
+
+    def test_beat_schedules_and_task_expires_stale_holds(self):
+        schedule = celery_app.conf.beat_schedule["expire-stale-holds"]
+        self.assertEqual(schedule["task"], "bookings.tasks.expire_stale_holds_task")
+        self.assertEqual(schedule["schedule"], 60.0)
+
+        booking, hold = self.create_booking_and_hold(
+            timezone.now() - timedelta(minutes=1)
+        )
+        result = expire_stale_holds_task.apply(throw=True).get()
+
+        hold.refresh_from_db()
+        booking.refresh_from_db()
+        self.assertEqual(result, {"expired_holds": 1})
+        self.assertEqual(hold.status, Hold.Status.EXPIRED)
+        self.assertEqual(booking.status, Booking.Status.EXPIRED)
 
     def test_running_expiry_twice_is_idempotent(self):
         booking, hold = self.create_booking_and_hold(

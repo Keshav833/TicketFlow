@@ -10,9 +10,10 @@ from rest_framework.exceptions import ValidationError
 
 from bookings.payment_services import create_razorpay_order
 from bookings.payment_services import verify_razorpay_payment
-from bookings.models import Booking, BookingItem, Hold, Payment
+from bookings.models import Booking, BookingItem, Hold, OutboxEvent, Payment
 from events.models import Venue, Event, Seat, TicketTier, EventSeat
 from bookings.models import Ticket
+from bookings.tasks import dispatch_pending_outbox_events
 
 
 
@@ -285,7 +286,14 @@ class PaymentRetryTests(TestCase):
         )
         self.assertEqual(result["booking_status"], Booking.Status.CONFIRMED)
 
-        # Verify ticket generation.
+        self.assertTrue(
+            OutboxEvent.objects.filter(
+                aggregate_id=booking.id,
+                status=OutboxEvent.Status.PENDING,
+            ).exists()
+        )
+        dispatch_pending_outbox_events.apply(throw=True)
+
         tickets = Ticket.objects.filter(
             booking_item__booking=booking
         )

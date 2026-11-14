@@ -16,11 +16,13 @@ from bookings.models import (
     Booking,
     BookingItem,
     Hold,
+    OutboxEvent,
     Payment,
     ProcessedWebhookEvent,
     Ticket,
 )
 from events.models import Event, EventSeat, Seat, TicketTier, Venue
+from bookings.tasks import dispatch_pending_outbox_events
 
 
 User = get_user_model()
@@ -156,7 +158,15 @@ class RazorpayWebhookTests(TestCase):
                 event_id="event_captured_1"
             ).exists()
         )
-        # Verify ticket generation.
+
+        self.assertTrue(
+            OutboxEvent.objects.filter(
+                aggregate_id=self.booking.id,
+                status=OutboxEvent.Status.PENDING,
+            ).exists()
+        )
+        dispatch_pending_outbox_events.apply(throw=True)
+
         tickets = Ticket.objects.filter(
             booking_item__booking=self.booking
         )

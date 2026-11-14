@@ -13,6 +13,7 @@ from datetime import timedelta
 
 import os
 import sys
+from urllib.parse import urlsplit, urlunsplit
 
 from dotenv import load_dotenv
 
@@ -37,9 +38,24 @@ if not SECRET_KEY:
 
 TIME_ZONE = "Asia/Kolkata"
 
+# Redis connection details are shared, while each feature uses a separate DB.
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+_redis_parts = urlsplit(REDIS_URL)
+
+
+def _redis_database_url(database):
+    return urlunsplit((
+        _redis_parts.scheme,
+        _redis_parts.netloc,
+        f"/{database}",
+        _redis_parts.query,
+        "",
+    ))
+
+
 # Celery Configuration
-CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
+CELERY_BROKER_URL = _redis_database_url(0)
+CELERY_RESULT_BACKEND = _redis_database_url(1)
 
 IS_RUNNING_TESTS = "pytest" in sys.argv[0] or "test" in sys.argv
 CELERY_TASK_ALWAYS_EAGER = (
@@ -52,6 +68,33 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+
+EVENT_LIST_CACHE_TTL = int(os.getenv("EVENT_LIST_CACHE_TTL", "300"))
+SEAT_AVAILABILITY_CACHE_TTL = int(
+    os.getenv("SEAT_AVAILABILITY_CACHE_TTL", "20")
+)
+
+CACHES = {
+    "default": {
+        "BACKEND": (
+            "django.core.cache.backends.locmem.LocMemCache"
+            if IS_RUNNING_TESTS
+            else "django.core.cache.backends.redis.RedisCache"
+        ),
+        "LOCATION": (
+            "ticketflow-test-cache"
+            if IS_RUNNING_TESTS
+            else _redis_database_url(2)
+        ),
+        "OPTIONS": {} if IS_RUNNING_TESTS else {
+            "socket_connect_timeout": float(
+                os.getenv("REDIS_CACHE_CONNECT_TIMEOUT", "1")
+            ),
+            "socket_timeout": float(os.getenv("REDIS_CACHE_TIMEOUT", "1")),
+            "max_connections": int(os.getenv("REDIS_CACHE_MAX_CONNECTIONS", "100")),
+        },
+    },
+}
 
 DEBUG = True
 
@@ -76,9 +119,9 @@ INSTALLED_APPS = [
     "django_filters",
     'core',
     'users',
-    'events',
+    'events.apps.EventsConfig',
     "accounts",
-    "bookings",
+    "bookings.apps.BookingsConfig",
     "drf_spectacular",
 ]
 

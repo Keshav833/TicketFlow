@@ -39,6 +39,7 @@ def create_booking_fulfillment_outbox(booking):
     return event
 
 
+@transaction.atomic
 def claim_pending_outbox_events(limit=20):
     now = timezone.now()
     events = list(
@@ -63,7 +64,7 @@ def claim_pending_outbox_events(limit=20):
 def mark_outbox_event_dispatched(event):
     event.status = OutboxEvent.Status.DISPATCHED
     event.dispatched_at = timezone.now()
-    event.locked_at = None
+    event.locked_at = event.dispatched_at
     event.save(update_fields=["status", "dispatched_at", "locked_at", "updated_at"])
 
 
