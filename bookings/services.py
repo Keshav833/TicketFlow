@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+import logging
 
 from django.db import transaction
 from django.db.models import Q
@@ -9,6 +10,9 @@ from rest_framework.exceptions import ValidationError
 from events.cache import invalidate_seat_availability
 from events.models import EventSeat
 from .models import Booking, BookingItem, Hold
+
+
+logger = logging.getLogger("ticketflow")
 
 
 def transition_booking(*, booking, new_status):
@@ -42,8 +46,17 @@ def transition_booking(*, booking, new_status):
              f"Invalid booking transition: {booking.status} -> {new_status}"
         )
 
+    old_status = booking.status
     booking.status = new_status
     booking.save(update_fields=["status", "updated_at"])
+    transaction.on_commit(
+        lambda: logger.info(
+            "Booking status changed: booking_id=%s from=%s to=%s",
+            booking.id,
+            old_status,
+            new_status,
+        )
+    )
 
     return booking
 
@@ -134,6 +147,14 @@ def create_seat_hold(*, user, event_id, event_seat_ids):
     ])
 
     invalidate_seat_availability(event_id)
+    transaction.on_commit(
+        lambda: logger.info(
+            "Seat hold created: booking_id=%s event_id=%s seat_count=%s",
+            booking.id,
+            event_id,
+            len(seats),
+        )
+    )
     return booking
 
 
@@ -186,6 +207,13 @@ def expire_stale_holds():
     for event_id in event_ids:
         invalidate_seat_availability(event_id)
 
+    transaction.on_commit(
+        lambda: logger.info(
+            "Expired stale holds: count=%s event_count=%s",
+            len(hold_ids),
+            len(event_ids),
+        )
+    )
     return len(hold_ids)
 
 

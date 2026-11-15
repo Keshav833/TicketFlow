@@ -212,6 +212,7 @@ REST_FRAMEWORK = {
         "payment_order": os.getenv("THROTTLE_PAYMENT_ORDER_RATE", "5/minute"),
         "payment_verify": os.getenv("THROTTLE_PAYMENT_VERIFY_RATE", "10/minute"),
         "ticket_checkin": os.getenv("THROTTLE_TICKET_CHECKIN_RATE", "10/minute"),
+        "admin_dashboard": os.getenv("THROTTLE_ADMIN_DASHBOARD_RATE", "60/minute"),
     },
     # Do not trust client-supplied X-Forwarded-For unless a trusted proxy count
     # is explicitly configured and the proxy sanitizes that header.

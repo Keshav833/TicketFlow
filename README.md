@@ -211,6 +211,39 @@ Run the caching tests with:
 pytest events/test_cache.py
 ```
 
+## Admin dashboard and operations
+
+The Django admin at `/admin/` is for staff users. Booking, payment, hold,
+ticket, webhook-event, and email-delivery records are available for inspection.
+Outbox events are also searchable and read-only; raw payload and error details
+are not shown. Booking, payment, ticket, and hold state is read-only in admin;
+changes must go through the application flows. Ticket verification tokens and
+webhook signatures are not displayed.
+
+The staff-only statistics endpoint is `GET /api/admin/dashboard/stats/`.
+It reports booking, payment, ticket, and event counts, along with total,
+today, and this-month successful-payment revenue. Revenue includes only
+successful payments attached to confirmed bookings. Today/month totals use the
+payment's `updated_at` timestamp as the available proxy for when payment
+succeeded, so later payment updates can affect the period in which it appears.
+Events are considered upcoming when `starts_at` is in the future.
+
+Application logs are written at INFO level to the console and rotating
+`logs/ticketflow.log`; ERROR-level records are also written to
+`logs/errors.log`. Files rotate at 5 MB with five backups. Unexpected API
+exceptions keep the established error response behavior and are logged by
+exception type without returning internal details to the client. Unexpected
+API exceptions return HTTP 500 with the same response envelope and a generic
+message. Booking status and hold lifecycle logs are emitted after their
+database transactions commit. Never add credentials, payment signatures,
+JWTs, or webhook payloads to log messages.
+
+Run the dashboard and admin tests with:
+
+```bash
+pytest bookings/tests/test_dashboard_admin.py bookings/tests/test_exceptions.py
+```
+
 ## API rate limits and security
 
 DRF's `ScopedRateThrottle` uses Django's configured default cache. In

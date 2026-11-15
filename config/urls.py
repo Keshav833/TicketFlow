@@ -23,6 +23,7 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
     SpectacularRedocView,
 )
+from bookings.dashboard import AdminDashboardStatsView
 
 
 
@@ -30,6 +31,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/", include("core.urls")),
     path("api/", include("events.urls")),
+    path(
+        "api/admin/dashboard/stats/",
+        AdminDashboardStatsView.as_view(),
+        name="admin-dashboard-stats",
+    ),
     path(
         "api/auth/",
         include("accounts.urls"),

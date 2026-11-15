@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
+from rest_framework.test import APIClient
 
 from bookings.payment_services import create_razorpay_order
 from bookings.payment_services import verify_razorpay_payment
@@ -310,6 +311,58 @@ class PaymentRetryTests(TestCase):
             ticket.qr_code.storage.exists(ticket.qr_code.name)
         )
 
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_payment_verification_api_confirms_captured_payment(
+        self,
+        mock_get_client,
+    ):
+        booking, payment = self.create_pending_payment()
+        mock_client = mock_get_client.return_value
+        mock_client.payment.fetch.return_value = {
+            "id": "pay_api_test_123",
+            "order_id": payment.provider_order_id,
+            "amount": 49900,
+            "currency": "INR",
+            "status": "captured",
+        }
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+
+        response = client.post(
+            "/api/bookings/payments/verify/",
+            {
+                "booking_id": booking.id,
+                "razorpay_order_id": payment.provider_order_id,
+                "razorpay_payment_id": "pay_api_test_123",
+                "razorpay_signature": "x" * 64,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data["detail"],
+            "Payment verified successfully.",
+        )
+        self.assertEqual(
+            response.data["payment_status"],
+            Payment.Status.SUCCEEDED,
+        )
+        self.assertEqual(
+            response.data["booking_status"],
+            Booking.Status.CONFIRMED,
+        )
+        booking.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.CONFIRMED)
+        self.assertEqual(payment.status, Payment.Status.SUCCEEDED)
+        self.assertTrue(
+            OutboxEvent.objects.filter(
+                aggregate_id=booking.id,
+                status=OutboxEvent.Status.PENDING,
+            ).exists()
+        )
+
 
     @patch("bookings.payment_services.get_razorpay_client")
     def test_invalid_signature_does_not_confirm_booking(self, mock_get_client):
@@ -374,6 +427,32 @@ class PaymentRetryTests(TestCase):
         self.assertEqual(payment.status, Payment.Status.PENDING)
         self.assertEqual(payment.provider_payment_id, "")
 
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_incorrect_currency_does_not_confirm_booking(self, mock_get_client):
+        booking, payment = self.create_pending_payment()
+        mock_get_client.return_value.payment.fetch.return_value = {
+            "id": "pay_test_wrong_currency",
+            "order_id": payment.provider_order_id,
+            "amount": 49900,
+            "currency": "USD",
+            "status": "captured",
+        }
+
+        with self.assertRaises(ValidationError):
+            verify_razorpay_payment(
+                user=self.user,
+                booking_id=booking.id,
+                razorpay_order_id=payment.provider_order_id,
+                razorpay_payment_id="pay_test_wrong_currency",
+                razorpay_signature="valid_test_signature",
+            )
+
+        booking.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.PAYMENT_PENDING)
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+        self.assertEqual(payment.provider_payment_id, "")
+
 
 
     @patch("bookings.payment_services.get_razorpay_client")
@@ -401,6 +480,35 @@ class PaymentRetryTests(TestCase):
         booking.refresh_from_db()
         payment.refresh_from_db()
 
+        self.assertEqual(booking.status, Booking.Status.PAYMENT_PENDING)
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+        self.assertEqual(payment.provider_payment_id, "")
+
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_provider_reported_failed_payment_does_not_confirm_booking(
+        self,
+        mock_get_client,
+    ):
+        booking, payment = self.create_pending_payment()
+        mock_get_client.return_value.payment.fetch.return_value = {
+            "id": "pay_test_failed",
+            "order_id": payment.provider_order_id,
+            "amount": 49900,
+            "currency": "INR",
+            "status": "failed",
+        }
+
+        with self.assertRaises(ValidationError):
+            verify_razorpay_payment(
+                user=self.user,
+                booking_id=booking.id,
+                razorpay_order_id=payment.provider_order_id,
+                razorpay_payment_id="pay_test_failed",
+                razorpay_signature="valid_test_signature",
+            )
+
+        booking.refresh_from_db()
+        payment.refresh_from_db()
         self.assertEqual(booking.status, Booking.Status.PAYMENT_PENDING)
         self.assertEqual(payment.status, Payment.Status.PENDING)
         self.assertEqual(payment.provider_payment_id, "")
