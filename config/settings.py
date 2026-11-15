@@ -98,8 +98,11 @@ def _redis_database_url(database):
 
 
 # Celery Configuration
-CELERY_BROKER_URL = _redis_database_url(0)
-CELERY_RESULT_BACKEND = _redis_database_url(1)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", _redis_database_url(0))
+CELERY_RESULT_BACKEND = os.getenv(
+    "CELERY_RESULT_BACKEND",
+    _redis_database_url(1),
+)
 
 IS_RUNNING_TESTS = "pytest" in sys.argv[0] or "test" in sys.argv
 CELERY_TASK_ALWAYS_EAGER = (
@@ -308,14 +311,34 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 
+_email_backend = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+_email_options = {}
+if _email_backend == "django.core.mail.backends.smtp.EmailBackend":
+    _email_options = {
+        "host": os.getenv("EMAIL_HOST", "localhost"),
+        "port": int(os.getenv("EMAIL_PORT", "25")),
+        "username": os.getenv("EMAIL_HOST_USER", ""),
+        "password": os.getenv("EMAIL_HOST_PASSWORD", ""),
+        "use_tls": _env_bool("EMAIL_USE_TLS", False),
+        "use_ssl": _env_bool("EMAIL_USE_SSL", False),
+        "timeout": int(os.getenv("EMAIL_TIMEOUT", "10")),
+    }
+
 # Email configuration (Django 6.1+)
 MAILERS = {
     "default": {
-        "BACKEND": "django.core.mail.backends.console.EmailBackend",
+        "BACKEND": _email_backend,
+        "OPTIONS": _email_options,
     },
 }
 
-DEFAULT_FROM_EMAIL = "TicketFlow <no-reply@ticketflow.com>"
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    "TicketFlow <no-reply@ticketflow.com>",
+)
 
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")

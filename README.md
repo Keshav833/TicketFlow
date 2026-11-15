@@ -93,22 +93,16 @@ held ──▶ payment_pending ──▶ confirmed
 ```
 ticketflow/
 ├── manage.py
-├── tickets/
-│   ├── models.py
-│   ├── serializers.py
-│   ├── views.py
-│   ├── urls.py
-│   ├── services.py
-│   ├── tasks.py
-│   └── tests/
-├── users/
-├── payments/
-├── core/
+├── accounts/
+├── bookings/
 ├── config/
-├── docker/
-├── tests/
-├── README.md
+├── core/
+├── events/
+├── users/
+├── Dockerfile
 ├── docker-compose.yml
+├── .dockerignore
+├── README.md
 └── requirements.txt
 ```
 
@@ -116,24 +110,67 @@ ticketflow/
 
 ##  Getting Started
 
-```bash
-# 1. Clone
-git clone https://github.com/<your-username>/ticketflow.git
-cd ticketflow
+### Run the backend with Docker Compose
 
-# 2. Environment variables
-cp .env.example .env     # add DB, Redis, Razorpay test keys, JWT secret
+Prerequisites: Docker Desktop (or Docker Engine) with the Compose v2 plugin.
+The Compose stack is intended for local development; Django uses `runserver`,
+which is not a production application server.
 
-# 3. Run the full stack (Django, Postgres, Redis, Celery)
-docker compose up --build
+From the repository root, create a local environment file only if you do not
+already have one. Keep `.env` private and replace the sample secret and
+password before using the stack:
 
-# 4. Migrations & admin user
+```cmd
+if not exist .env copy .env.example .env
+```
+
+Build and start PostgreSQL, Redis, Django, the Celery worker, and Celery Beat:
+
+```cmd
+docker compose up --build -d
+docker compose ps
+```
+
+The web container applies migrations before starting. To apply migrations
+manually after model changes:
+
+```cmd
 docker compose exec web python manage.py migrate
+```
+
+Create an administrator:
+
+```cmd
 docker compose exec web python manage.py createsuperuser
 ```
 
+Useful operations:
+
+```cmd
+docker compose logs -f web worker beat db redis
+docker compose exec web pytest
+docker compose down
+```
+
+`docker compose down` stops and removes the containers but preserves named
+volumes. The PostgreSQL database is persisted in the `postgres_data` volume;
+Redis, uploaded media, and Celery Beat's scheduler state also use named
+volumes. To permanently delete all persisted stack data, use
+`docker compose down -v`.
+
+Run exactly one `beat` service instance; scaling it can schedule duplicate
+periodic tasks. Check service health with `docker compose ps`; worker and Beat
+logs also show Celery broker connection and scheduler activity.
+
 - API docs (Swagger): `http://localhost:8000/api/docs/`
 - Admin: `http://localhost:8000/admin/`
+
+Compose overrides `DB_HOST` to `db` and Redis URLs to `redis`, so the
+containers connect through the Compose network while local settings continue
+to use the host names in `.env`. Redis database 0 remains the Celery broker,
+database 1 the result backend, and database 2 Django's cache. Configure
+Razorpay test credentials and SMTP values in `.env` when those integrations
+are needed; email uses the console backend by default.
 
 ### Frontend
 
