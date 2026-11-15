@@ -2,6 +2,7 @@
 import hashlib
 import hmac
 import json
+from unittest.mock import patch
 
 from decimal import Decimal
 from datetime import timedelta
@@ -209,6 +210,66 @@ class RazorpayWebhookTests(TestCase):
                 event_id="event_invalid_1"
             ).exists()
         )
+
+    def test_captured_webhook_with_incorrect_currency_is_rejected(self):
+        payload = self.make_payload(
+            "payment.captured",
+            currency="USD",
+        )
+
+        response = self.send_event(payload, "event_wrong_currency_1")
+
+        self.assertEqual(response.status_code, 400)
+        self.payment.refresh_from_db()
+        self.booking.refresh_from_db()
+        self.hold.refresh_from_db()
+        self.assertEqual(self.payment.status, Payment.Status.PENDING)
+        self.assertEqual(self.booking.status, Booking.Status.PAYMENT_PENDING)
+        self.assertEqual(self.hold.status, Hold.Status.ACTIVE)
+        self.assertFalse(
+            ProcessedWebhookEvent.objects.filter(
+                event_id="event_wrong_currency_1"
+            ).exists()
+        )
+
+    @patch(
+        "bookings.webhook_services.create_booking_fulfillment_outbox",
+        side_effect=RuntimeError("outbox write failed"),
+    )
+    def test_webhook_failure_rolls_back_payment_booking_and_hold(
+        self,
+        mock_create_outbox,
+    ):
+        payload = self.make_payload("payment.captured")
+
+        response = self.send_event(payload, "event_rollback_1")
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.data,
+            {
+                "success": False,
+                "status_code": 500,
+                "message": "An unexpected error occurred.",
+                "errors": None,
+            },
+        )
+        self.payment.refresh_from_db()
+        self.booking.refresh_from_db()
+        self.hold.refresh_from_db()
+        self.assertEqual(self.payment.status, Payment.Status.PENDING)
+        self.assertEqual(self.payment.provider_payment_id, "")
+        self.assertEqual(self.booking.status, Booking.Status.PAYMENT_PENDING)
+        self.assertEqual(self.hold.status, Hold.Status.ACTIVE)
+        self.assertFalse(
+            ProcessedWebhookEvent.objects.filter(
+                event_id="event_rollback_1"
+            ).exists()
+        )
+        self.assertFalse(
+            OutboxEvent.objects.filter(aggregate_id=self.booking.id).exists()
+        )
+        mock_create_outbox.assert_called_once()
 
     def test_failed_payment_is_marked_failed(self):
         payload = self.make_payload("payment.failed")

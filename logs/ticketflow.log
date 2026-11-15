@@ -4824,3 +4824,316 @@ rest_framework.exceptions.ValidationError: [ErrorDetail(string='Invalid webhook 
 2026-11-15 13:01:55,952 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.captured
 2026-11-15 13:01:55,962 | ERROR | ticketflow | Unhandled API exception (RuntimeError)
 2026-11-15 13:01:55,962 | ERROR | django.request | Internal Server Error: /api/bookings/payments/webhook/
+2026-11-15 13:04:02,731 | WARNING | django.request | Too Many Requests: /api/auth/token/
+2026-11-15 13:04:02,785 | WARNING | django.request | Bad Request: /api/auth/register/
+2026-11-15 13:04:07,363 | WARNING | django.request | Too Many Requests: /api/auth/register/
+2026-11-15 13:04:07,373 | WARNING | django.request | Bad Request: /api/auth/register/
+2026-11-15 13:04:08,076 | WARNING | django.request | Unauthorized: /api/auth/token/refresh/
+2026-11-15 13:04:21,818 | WARNING | django.request | Not Found: /api/bookings/2/
+2026-11-15 13:04:25,861 | WARNING | django.request | Unauthorized: /api/bookings/
+2026-11-15 13:04:34,903 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:34,906 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:34,909 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:34,911 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:34,913 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:34,916 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:34,919 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:34,922 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:34,925 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:34,935 | WARNING | django.request | Too Many Requests: /api/bookings/holds/
+2026-11-15 13:04:34,939 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:37,157 | WARNING | django.request | Too Many Requests: /api/bookings/payments/create-order/
+2026-11-15 13:04:39,404 | WARNING | django.request | Bad Request: /api/bookings/payments/verify/
+2026-11-15 13:04:43,612 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:43,618 | WARNING | django.request | Bad Request: /api/bookings/holds/
+2026-11-15 13:04:43,636 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:04:43,637 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:04:43,637 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.failed
+2026-11-15 13:04:43,637 | WARNING | bookings.webhook_services | Webhook rejected: missing payment identifiers
+2026-11-15 13:04:43,637 | WARNING | django.request | Bad Request: /api/bookings/payments/webhook/
+2026-11-15 13:04:43,639 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:04:43,640 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:04:43,640 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.failed
+2026-11-15 13:04:43,641 | WARNING | bookings.webhook_services | Webhook rejected: missing payment identifiers
+2026-11-15 13:04:43,641 | WARNING | django.request | Bad Request: /api/bookings/payments/webhook/
+2026-11-15 13:04:43,643 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:04:43,644 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:04:43,644 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.failed
+2026-11-15 13:04:43,644 | WARNING | bookings.webhook_services | Webhook rejected: missing payment identifiers
+2026-11-15 13:04:43,645 | WARNING | django.request | Bad Request: /api/bookings/payments/webhook/
+2026-11-15 13:04:43,647 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:04:43,648 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:04:43,648 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.failed
+2026-11-15 13:04:43,648 | WARNING | bookings.webhook_services | Webhook rejected: missing payment identifiers
+2026-11-15 13:04:43,649 | WARNING | django.request | Bad Request: /api/bookings/payments/webhook/
+2026-11-15 13:04:43,650 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:04:43,651 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:04:43,653 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.failed
+2026-11-15 13:04:43,653 | WARNING | bookings.webhook_services | Webhook rejected: missing payment identifiers
+2026-11-15 13:04:43,655 | WARNING | django.request | Bad Request: /api/bookings/payments/webhook/
+2026-11-15 13:04:43,661 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:04:43,662 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:04:43,662 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.failed
+2026-11-15 13:04:43,663 | WARNING | bookings.webhook_services | Webhook rejected: missing payment identifiers
+2026-11-15 13:04:43,664 | WARNING | django.request | Bad Request: /api/bookings/payments/webhook/
+2026-11-15 13:04:43,667 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:04:43,667 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:04:43,668 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.failed
+2026-11-15 13:04:43,668 | WARNING | bookings.webhook_services | Webhook rejected: missing payment identifiers
+2026-11-15 13:04:43,668 | WARNING | django.request | Bad Request: /api/bookings/payments/webhook/
+2026-11-15 13:05:01,841 | ERROR | bookings.tasks | Failed to dispatch outbox event 1
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\tasks.py", line 31, in dispatch_pending_outbox_events
+    fulfill_confirmed_booking.delay(event.id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+ConnectionError: Redis unavailable
+2026-11-15 13:05:01,962 | INFO | bookings.tasks | Generated 1 tickets for booking 18 via outbox
+2026-11-15 13:05:02,074 | INFO | celery.app.trace | Task bookings.tasks.send_booking_confirmation_email_task[0243fe27-432e-4aa5-a96c-3b5b8799f14e] succeeded in 0.05533990000549238s: {'status': 'sent', 'booking_id': 18}
+2026-11-15 13:05:02,077 | INFO | celery.app.trace | Task bookings.tasks.fulfill_confirmed_booking[0f5f23c6-4fd5-481c-b31d-bc67ef4e96d6] succeeded in 0.19703320000553504s: {'status': 'fulfilled', 'booking_id': 18}
+2026-11-15 13:05:02,079 | INFO | celery.app.trace | Task bookings.tasks.fulfill_confirmed_booking[ee7da8eb-fc9f-4012-991e-02794563af28] succeeded in 0.002132599998731166s: {'status': 'already_completed'}
+2026-11-15 13:05:02,115 | ERROR | bookings.tasks | Email delivery failed for booking 19
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\tasks.py", line 146, in send_booking_confirmation_email_task
+    sent = send_booking_confirmation_email(booking_id)
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1238, in _execute_mock_call
+    raise result
+RuntimeError: temporary mail error
+2026-11-15 13:05:02,136 | INFO | celery.app.trace | Task bookings.tasks.send_booking_confirmation_email_task[7d9d4f76-5624-4a3c-8bb3-f4b203555bab] retry: Retry in 1s: RuntimeError('temporary mail error')
+2026-11-15 13:05:02,148 | INFO | celery.app.trace | Task bookings.tasks.send_booking_confirmation_email_task[7d9d4f76-5624-4a3c-8bb3-f4b203555bab] succeeded in 0.010584099989500828s: {'status': 'sent', 'booking_id': 19}
+2026-11-15 13:05:02,155 | INFO | celery.app.trace | Task bookings.tasks.send_booking_confirmation_email_task[95715937-5f2a-479a-861b-dc3188e8a3af] succeeded in 0.0058991000114474446s: {'status': 'already_sent', 'booking_id': 19}
+2026-11-15 13:05:02,190 | ERROR | bookings.tasks | Fulfillment failed for outbox event 4
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\tasks.py", line 92, in fulfill_confirmed_booking
+    tickets = generate_tickets(booking.id)
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+RuntimeError: storage unavailable
+2026-11-15 13:05:02,250 | INFO | bookings.tasks | Generated 1 tickets for booking 20 via outbox
+2026-11-15 13:05:02,267 | INFO | celery.app.trace | Task bookings.tasks.send_booking_confirmation_email_task[a0fa966d-93d0-4919-9ad9-ad80f6e2760a] succeeded in 0.011295999996946193s: {'status': 'sent', 'booking_id': 20}
+2026-11-15 13:05:02,270 | INFO | celery.app.trace | Task bookings.tasks.fulfill_confirmed_booking[78502378-3988-44e7-bf6d-4461a4b57012] succeeded in 0.056103800001437776s: {'status': 'fulfilled', 'booking_id': 20}
+2026-11-15 13:05:02,270 | INFO | celery.app.trace | Task bookings.tasks.dispatch_pending_outbox_events[1f5e3c5b-c26d-4c04-b24f-8440febe790c] succeeded in 0.062370300001930445s: {'dispatched': 1}
+2026-11-15 13:05:02,301 | INFO | bookings.tasks | Recovered 1 stale outbox events
+2026-11-15 13:05:02,302 | INFO | celery.app.trace | Task bookings.tasks.recover_stale_outbox_events[bd8e9245-bdd5-4586-a7fc-7e7e24bd0632] succeeded in 0.0031376999977510422s: 1
+2026-11-15 13:05:02,335 | INFO | bookings.tasks | Queued 1 pending email deliveries
+2026-11-15 13:05:02,337 | INFO | celery.app.trace | Task bookings.tasks.recover_stale_email_deliveries[da7a1e73-aeac-4f33-82c2-00ec7621dc13] succeeded in 0.008660000006784685s: {'queued': 1, 'recovered': 1}
+2026-11-15 13:05:04,639 | INFO | bookings.ticket_services | Ticket TKT-CHECKIN-23 checked in successfully for booking 23
+2026-11-15 13:05:04,646 | WARNING | bookings.ticket_services | Duplicate check-in attempt for ticket TKT-CHECKIN-23
+2026-11-15 13:05:04,665 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:04,694 | INFO | bookings.ticket_services | Ticket TKT-CHECKIN-24 checked in successfully for booking 24
+2026-11-15 13:05:08,949 | INFO | bookings.ticket_services | Ticket TKT-API-25 checked in successfully for booking 25
+2026-11-15 13:05:08,960 | WARNING | bookings.ticket_services | Duplicate check-in attempt for ticket TKT-API-25
+2026-11-15 13:05:08,962 | WARNING | django.request | Conflict: /api/bookings/tickets/check-in/
+2026-11-15 13:05:08,978 | WARNING | django.request | Bad Request: /api/bookings/tickets/check-in/
+2026-11-15 13:05:08,991 | WARNING | django.request | Forbidden: /api/bookings/tickets/check-in/
+2026-11-15 13:05:09,036 | INFO | bookings.ticket_services | Ticket TKT-API-26 checked in successfully for booking 26
+2026-11-15 13:05:09,049 | WARNING | django.request | Unauthorized: /api/bookings/tickets/check-in/
+2026-11-15 13:05:09,068 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:09,070 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,898 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:10,901 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,909 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:10,911 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,921 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:10,923 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,930 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:10,932 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,941 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:10,942 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,949 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:10,951 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,959 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:10,961 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,969 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:10,971 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,980 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:10,982 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,989 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-15 13:05:10,991 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-15 13:05:10,994 | WARNING | django.request | Too Many Requests: /api/bookings/tickets/check-in/
+2026-11-15 13:05:11,094 | WARNING | django.request | Unauthorized: /api/admin/dashboard/stats/
+2026-11-15 13:05:11,102 | WARNING | django.request | Forbidden: /api/admin/dashboard/stats/
+2026-11-15 13:05:13,935 | ERROR | bookings.email_services | Failed to send confirmation email for booking 35
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\email_services.py", line 116, in send_confirmation_safely
+    send_booking_confirmation_email(booking_id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+Exception: SMTP connection failed
+2026-11-15 13:05:16,004 | INFO | bookings.tasks | Expired stale holds count: 1
+2026-11-15 13:05:16,005 | INFO | celery.app.trace | Task bookings.tasks.expire_stale_holds_task[664b8718-4e8f-498a-b441-49e92a8403c7] succeeded in 0.018967800002428703s: {'expired_holds': 1}
+2026-11-15 13:05:19,898 | INFO | bookings.payment_services | Payment verification started for booking 54
+2026-11-15 13:05:19,908 | WARNING | bookings.payment_services | Payment amount mismatch for booking 54
+2026-11-15 13:05:20,019 | INFO | bookings.payment_services | Payment verification started for booking 57
+2026-11-15 13:05:20,029 | WARNING | bookings.payment_services | Unexpected payment currency for booking 57
+2026-11-15 13:05:20,049 | INFO | bookings.payment_services | Payment verification started for booking 58
+2026-11-15 13:05:20,056 | ERROR | bookings.payment_services | Razorpay signature verification failed for booking 58
+2026-11-15 13:05:20,082 | INFO | bookings.payment_services | Payment verification started for booking 59
+2026-11-15 13:05:20,111 | INFO | bookings.payment_services | Payment successful and booking 59 confirmed. Payment ID: 30
+2026-11-15 13:05:20,137 | INFO | bookings.payment_services | Payment verification started for booking 60
+2026-11-15 13:05:20,145 | WARNING | bookings.payment_services | Payment not captured for booking 60
+2026-11-15 13:05:20,219 | INFO | bookings.payment_services | Payment verification started for booking 63
+2026-11-15 13:05:20,244 | INFO | bookings.payment_services | Payment successful and booking 63 confirmed. Payment ID: 34
+2026-11-15 13:05:20,245 | INFO | bookings.payment_services | Payment verification started for booking 63
+2026-11-15 13:05:20,250 | INFO | bookings.payment_services | Duplicate payment verification for booking 63
+2026-11-15 13:05:20,274 | INFO | bookings.payment_services | Payment verification started for booking 64
+2026-11-15 13:05:20,284 | WARNING | bookings.payment_services | Payment not captured for booking 64
+2026-11-15 13:05:20,400 | INFO | bookings.payment_services | Payment verification started for booking 65
+2026-11-15 13:05:20,426 | INFO | bookings.payment_services | Payment successful and booking 65 confirmed. Payment ID: 36
+2026-11-15 13:05:20,490 | INFO | bookings.tasks | Generated 1 tickets for booking 65 via outbox
+2026-11-15 13:05:20,512 | INFO | celery.app.trace | Task bookings.tasks.send_booking_confirmation_email_task[675b620b-d638-4feb-9b75-3e219473a581] succeeded in 0.01592039999377448s: {'status': 'not_sent', 'booking_id': 65}
+2026-11-15 13:05:20,515 | INFO | celery.app.trace | Task bookings.tasks.fulfill_confirmed_booking[d63abb23-339f-4db6-af9b-62862a06d774] succeeded in 0.06937990000005811s: {'status': 'fulfilled', 'booking_id': 65}
+2026-11-15 13:05:20,515 | INFO | celery.app.trace | Task bookings.tasks.dispatch_pending_outbox_events[83d15c33-9f12-485c-bae7-7bc414d41808] succeeded in 0.07902150000154506s: {'dispatched': 1}
+2026-11-15 13:05:22,470 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:05:22,471 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:05:22,471 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.captured
+2026-11-15 13:05:22,506 | INFO | bookings.webhook_services | Payment captured and booking 66 confirmed
+2026-11-15 13:05:22,506 | INFO | bookings.webhook_services | Payment captured for booking 66; fulfillment will be handled asynchronously via outbox.
+2026-11-15 13:05:22,508 | INFO | bookings.webhook_services | Razorpay webhook processed successfully: event=payment.captured, event_id=event_captured_1
+2026-11-15 13:05:22,571 | INFO | bookings.tasks | Generated 1 tickets for booking 66 via outbox
+2026-11-15 13:05:22,609 | INFO | celery.app.trace | Task bookings.tasks.send_booking_confirmation_email_task[2ca878d5-050a-4244-9a5e-dde6a02395cb] succeeded in 0.029088299997965805s: {'status': 'not_sent', 'booking_id': 66}
+2026-11-15 13:05:22,611 | INFO | celery.app.trace | Task bookings.tasks.fulfill_confirmed_booking[dfc2a84a-cecc-4d80-944e-6359d23ae528] succeeded in 0.0842867000028491s: {'status': 'fulfilled', 'booking_id': 66}
+2026-11-15 13:05:22,612 | INFO | celery.app.trace | Task bookings.tasks.dispatch_pending_outbox_events[f5cff721-6f2d-44d1-a7dc-7253660f3f4b] succeeded in 0.09298680000938475s: {'dispatched': 1}
+2026-11-15 13:05:22,638 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:05:22,639 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:05:22,639 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.captured
+2026-11-15 13:05:22,645 | WARNING | bookings.webhook_services | Webhook payment amount or currency mismatch for booking 67
+2026-11-15 13:05:22,647 | WARNING | django.request | Bad Request: /api/bookings/payments/webhook/
+2026-11-15 13:05:22,673 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:05:22,674 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:05:22,674 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.captured
+2026-11-15 13:05:22,695 | INFO | bookings.webhook_services | Payment captured and booking 68 confirmed
+2026-11-15 13:05:22,695 | INFO | bookings.webhook_services | Payment captured for booking 68; fulfillment will be handled asynchronously via outbox.
+2026-11-15 13:05:22,698 | INFO | bookings.webhook_services | Razorpay webhook processed successfully: event=payment.captured, event_id=event_duplicate_1
+2026-11-15 13:05:22,700 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:05:22,701 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:05:22,701 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.captured
+2026-11-15 13:05:22,708 | INFO | bookings.webhook_services | Duplicate webhook event ignored: event_duplicate_1
+2026-11-15 13:05:22,734 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:05:22,735 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:05:22,735 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.captured
+2026-11-15 13:05:22,758 | INFO | bookings.webhook_services | Payment captured and booking 69 confirmed
+2026-11-15 13:05:22,758 | INFO | bookings.webhook_services | Payment captured for booking 69; fulfillment will be handled asynchronously via outbox.
+2026-11-15 13:05:22,763 | INFO | bookings.webhook_services | Razorpay webhook processed successfully: event=payment.captured, event_id=event_success_1
+2026-11-15 13:05:22,766 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:05:22,767 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:05:22,767 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.failed
+2026-11-15 13:05:22,772 | WARNING | bookings.webhook_services | Delayed payment failure ignored for successful booking 69
+2026-11-15 13:05:22,797 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:05:22,798 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:05:22,798 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.failed
+2026-11-15 13:05:22,806 | WARNING | bookings.webhook_services | Payment failed for booking 70
+2026-11-15 13:05:22,808 | INFO | bookings.webhook_services | Razorpay webhook processed successfully: event=payment.failed, event_id=event_failed_1
+2026-11-15 13:05:22,832 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:05:22,833 | ERROR | bookings.webhook_services | Razorpay webhook signature verification failed
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 43, in process_razorpay_webhook
+    verify_webhook_signature(
+    ~~~~~~~~~~~~~~~~~~~~~~~~^
+        payload=payload,
+        ^^^^^^^^^^^^^^^^
+        signature=signature,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 32, in verify_webhook_signature
+    raise ValidationError("Invalid webhook signature.")
+rest_framework.exceptions.ValidationError: [ErrorDetail(string='Invalid webhook signature.', code='invalid')]
+2026-11-15 13:05:22,837 | WARNING | django.request | Bad Request: /api/bookings/payments/webhook/
+2026-11-15 13:05:22,860 | INFO | bookings.webhook_services | Razorpay webhook received
+2026-11-15 13:05:22,861 | INFO | bookings.webhook_services | Razorpay webhook signature verified
+2026-11-15 13:05:22,862 | INFO | bookings.webhook_services | Processing Razorpay webhook event: payment.captured
+2026-11-15 13:05:22,876 | ERROR | ticketflow | Unhandled API exception (RuntimeError)
+2026-11-15 13:05:22,878 | ERROR | django.request | Internal Server Error: /api/bookings/payments/webhook/
+2026-11-15 13:05:23,484 | WARNING | django.request | Bad Request: /api/events/
+2026-11-15 13:05:24,019 | WARNING | django.request | Too Many Requests: /api/events/
+2026-11-15 13:05:24,135 | WARNING | django.request | Too Many Requests: /api/events/57/seats/
+2026-11-15 13:05:24,166 | WARNING | django.request | Bad Request: /api/events/
+2026-11-15 13:05:24,274 | ERROR | ticketflow | Rate-limit cache unavailable; allowing request to continue
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\config\throttling.py", line 13, in allow_request
+    return super().allow_request(request, view)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\venv\Lib\site-packages\rest_framework\throttling.py", line 233, in allow_request
+    return super().allow_request(request, view)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\venv\Lib\site-packages\rest_framework\throttling.py", line 123, in allow_request
+    self.history = self.cache.get(self.key, [])
+                   ~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 13:05:24,281 | ERROR | ticketflow | Cache read failed for version key ticketflow:event-list:version
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 34, in _version
+    value = cache.get(key)
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 13:05:24,284 | ERROR | ticketflow | Cache read failed for response key ticketflow:event-list:v0:anonymous:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 65, in get_cached_response
+    serialized = cache.get(key)
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 13:05:24,296 | ERROR | ticketflow | Cache read failed for version key ticketflow:event-list:version
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 34, in _version
+    value = cache.get(key)
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 13:05:24,299 | ERROR | ticketflow | Cache write failed for response key ticketflow:event-list:v0:anonymous:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 91, in set_cached_response
+    cache.set(key, serialized, timeout=timeout)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 13:05:24,377 | WARNING | django.request | Bad Request: /api/events/
+2026-11-15 13:05:26,546 | INFO | bookings.ticket_services | Ticket TKT-CONCURRENT-1 checked in successfully for booking 1
+2026-11-15 13:05:26,558 | WARNING | bookings.ticket_services | Duplicate check-in attempt for ticket TKT-CONCURRENT-1
+2026-11-15 13:05:31,224 | INFO | ticketflow | Seat hold created: booking_id=1 event_id=1 seat_count=1
+2026-11-15 13:05:33,238 | INFO | ticketflow | Seat hold created: booking_id=2 event_id=4 seat_count=1
+2026-11-15 13:05:33,270 | INFO | ticketflow | Booking status changed: booking_id=2 from=held to=expired
+2026-11-15 13:05:33,270 | INFO | ticketflow | Expired stale holds: count=1 event_count=1
+2026-11-15 13:05:33,934 | INFO | ticketflow | Seat hold created: booking_id=3 event_id=5 seat_count=1
+2026-11-15 13:05:33,968 | INFO | ticketflow | Booking status changed: booking_id=3 from=held to=expired
+2026-11-15 13:05:36,021 | INFO | ticketflow | Seat hold created: booking_id=6 event_id=8 seat_count=1
+2026-11-15 13:05:36,535 | ERROR | ticketflow | Cache invalidation failed for version key ticketflow:event-list:version
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 98, in _increment_version
+    if not cache.add(key, 1, timeout=None):
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 450, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 13:05:37,825 | ERROR | ticketflow | Unhandled API exception (RuntimeError)

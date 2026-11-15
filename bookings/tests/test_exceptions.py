@@ -70,3 +70,19 @@ def test_conflict_error_response():
         "message": "Ticket has already been used.",
         "errors": None,
     }
+
+
+def test_unhandled_exception_is_logged_without_exposing_its_message(caplog):
+    exc = RuntimeError("sensitive provider detail")
+
+    response = custom_exception_handler(exc, {})
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.data == {
+        "success": False,
+        "status_code": 500,
+        "message": "An unexpected error occurred.",
+        "errors": None,
+    }
+    assert "RuntimeError" in caplog.text
+    assert "sensitive provider detail" not in caplog.text
