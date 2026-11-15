@@ -154,6 +154,103 @@ The Vite development server proxies API calls to Django at `http://127.0.0.1:800
 docker compose exec web pytest
 ```
 
+## Load testing
+
+The optional Locust workload is read-only and exercises public event listings,
+event details, and per-event seat availability. It does not create bookings,
+holds, or payments. It defaults to localhost; non-local targets require
+`LOCUST_ALLOW_NONLOCAL=true`. Run it only against a local or staging
+environment you own, never production.
+
+`THROTTLE_ENABLED` defaults to `1`. Set it to `0` in the **server terminal**
+before starting Django to disable global DRF throttling and the project's
+explicit `SafeScopedRateThrottle` views. When enabled, Locust records HTTP 429s
+as successful requests in separate `429 rate-limited ...` statistics; other
+non-200 responses remain failures. Set the same variable in the Locust
+terminal so its stats reflect the server's mode.
+
+The cache-reset command clears Django's entire default cache, including both
+DRF throttle counters and event response caches. In this configuration that
+is Redis database 2, separate from Celery broker/result databases.
+
+Install the optional dependency once:
+
+```cmd
+venv\Scripts\python.exe -m pip install -r requirements-load.txt
+if not exist loadtest-results mkdir loadtest-results
+```
+
+### Baseline unthrottled run (two Command Prompt terminals)
+
+In the **SERVER terminal**, from the repository root:
+
+```cmd
+set THROTTLE_ENABLED=0
+venv\Scripts\python.exe manage.py clear_throttle_cache
+venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000 --noreload
+```
+
+In the **LOCUST terminal**, from the repository root, verify 200 requests
+first. Clear cache once more after verification so the run starts with an empty
+cache:
+
+```cmd
+set THROTTLE_ENABLED=0
+set LOCUST_EVENT_ID=1
+venv\Scripts\python.exe loadtest\verify_throttle.py --count 200
+venv\Scripts\python.exe manage.py clear_throttle_cache
+venv\Scripts\python.exe -m locust -f loadtest\locustfile.py --host http://127.0.0.1:8000 --headless -u 20 -r 2 -t 2m --csv=loadtest-results\baseline-unthrottled --html=loadtest-results\baseline-unthrottled.html
+```
+
+The verification should report 200 responses with zero 429s. The cache
+clearing command may be run from the Locust terminal; it clears the shared
+server cache.
+
+### Throttled run (two Command Prompt terminals)
+
+Stop the previous server with Ctrl+C. In the **SERVER terminal**:
+
+```cmd
+set THROTTLE_ENABLED=1
+venv\Scripts\python.exe manage.py clear_throttle_cache
+venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000 --noreload
+```
+
+In the **LOCUST terminal**, verify the throttled behavior, then clear the
+counters again before starting Locust:
+
+```cmd
+set THROTTLE_ENABLED=1
+set LOCUST_EVENT_ID=1
+venv\Scripts\python.exe loadtest\verify_throttle.py --count 200
+venv\Scripts\python.exe manage.py clear_throttle_cache
+venv\Scripts\python.exe -m locust -f loadtest\locustfile.py --host http://127.0.0.1:8000 --headless -u 20 -r 2 -t 2m --csv=loadtest-results\throttled --html=loadtest-results\throttled.html
+```
+
+With the default rates, the verifier should show 429s after the configured
+limit is reached. Locust separates these expected 429s from actual request
+failures.
+
+Locust reports throughput, response-time percentiles (including p95), and
+endpoint-level statistics. Its CSV and HTML reports are stored under
+`loadtest-results`. For PostgreSQL sampling, start this command in another
+terminal for each run:
+
+```cmd
+venv\Scripts\python.exe loadtest\db_metrics.py --duration 130 --interval 5 > loadtest-results\db-metrics.csv
+```
+
+Those counters are database-wide and include concurrent activity; they
+indicate database activity but are not per-request query latency. For
+query-level timing, enable PostgreSQL `pg_stat_statements` in the test
+environment.
+
+The verification script sends GET requests only:
+`venv\Scripts\python.exe loadtest\verify_throttle.py --count 200`. Record the
+machine/DB configuration, user count, spawn rate, duration, failure rate,
+requests/sec, p95, and database metrics with the results. Generated
+`loadtest-results` files are local test output and should not be committed.
+
 ## Redis response caching
 
 TicketFlow uses Django's cache framework with the existing Redis service to

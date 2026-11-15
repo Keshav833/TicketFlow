@@ -42,6 +42,7 @@ def _env_bool(name, default):
 
 
 DEBUG = _env_bool("DJANGO_DEBUG", True)
+THROTTLE_ENABLED = _env_bool("THROTTLE_ENABLED", True)
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv(
@@ -194,9 +195,11 @@ REST_FRAMEWORK = {
     ],
 
     # Rate limiting
-    "DEFAULT_THROTTLE_CLASSES": [
-        "config.throttling.SafeScopedRateThrottle",
-    ],
+    "DEFAULT_THROTTLE_CLASSES": (
+        ["config.throttling.SafeScopedRateThrottle"]
+        if THROTTLE_ENABLED
+        else []
+    ),
 
     "DEFAULT_THROTTLE_RATES": {
         "login": os.getenv("THROTTLE_LOGIN_RATE", "5/minute"),

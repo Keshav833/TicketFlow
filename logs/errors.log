@@ -2032,3 +2032,177 @@ Traceback (most recent call last):
     raise ConnectionError("Redis unavailable")
 ConnectionError: Redis unavailable
 2026-11-15 13:05:37,825 | ERROR | ticketflow | Unhandled API exception (RuntimeError)
+2026-11-15 15:32:06,281 | ERROR | ticketflow | Rate-limit cache unavailable; allowing request to continue
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\config\throttling.py", line 17, in allow_request
+    return super().allow_request(request, view)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\venv\Lib\site-packages\rest_framework\throttling.py", line 233, in allow_request
+    return super().allow_request(request, view)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\venv\Lib\site-packages\rest_framework\throttling.py", line 123, in allow_request
+    self.history = self.cache.get(self.key, [])
+                   ~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:32:06,284 | ERROR | ticketflow | Cache read failed for version key ticketflow:event-list:version
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 34, in _version
+    value = cache.get(key)
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:32:06,285 | ERROR | ticketflow | Cache read failed for response key ticketflow:event-list:v0:anonymous:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 65, in get_cached_response
+    serialized = cache.get(key)
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:32:06,289 | ERROR | ticketflow | Cache read failed for version key ticketflow:event-list:version
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 34, in _version
+    value = cache.get(key)
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:32:06,290 | ERROR | ticketflow | Cache write failed for response key ticketflow:event-list:v0:anonymous:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 91, in set_cached_response
+    cache.set(key, serialized, timeout=timeout)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:32:10,091 | ERROR | ticketflow | Cache invalidation failed for version key ticketflow:event-list:version
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 98, in _increment_version
+    if not cache.add(key, 1, timeout=None):
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 450, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:32:49,510 | ERROR | bookings.tasks | Failed to dispatch outbox event 1
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\tasks.py", line 31, in dispatch_pending_outbox_events
+    fulfill_confirmed_booking.delay(event.id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+ConnectionError: Redis unavailable
+2026-11-15 15:32:49,631 | ERROR | bookings.tasks | Email delivery failed for booking 19
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\tasks.py", line 146, in send_booking_confirmation_email_task
+    sent = send_booking_confirmation_email(booking_id)
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1238, in _execute_mock_call
+    raise result
+RuntimeError: temporary mail error
+2026-11-15 15:32:49,661 | ERROR | bookings.tasks | Fulfillment failed for outbox event 4
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\tasks.py", line 92, in fulfill_confirmed_booking
+    tickets = generate_tickets(booking.id)
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+RuntimeError: storage unavailable
+2026-11-15 15:32:53,670 | ERROR | bookings.email_services | Failed to send confirmation email for booking 35
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\email_services.py", line 116, in send_confirmation_safely
+    send_booking_confirmation_email(booking_id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+Exception: SMTP connection failed
+2026-11-15 15:32:55,990 | ERROR | bookings.payment_services | Razorpay signature verification failed for booking 58
+2026-11-15 15:32:57,335 | ERROR | bookings.webhook_services | Razorpay webhook signature verification failed
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 43, in process_razorpay_webhook
+    verify_webhook_signature(
+    ~~~~~~~~~~~~~~~~~~~~~~~~^
+        payload=payload,
+        ^^^^^^^^^^^^^^^^
+        signature=signature,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Github_Repos\TicketFlow\bookings\webhook_services.py", line 32, in verify_webhook_signature
+    raise ValidationError("Invalid webhook signature.")
+rest_framework.exceptions.ValidationError: [ErrorDetail(string='Invalid webhook signature.', code='invalid')]
+2026-11-15 15:32:57,363 | ERROR | ticketflow | Unhandled API exception (RuntimeError)
+2026-11-15 15:32:57,363 | ERROR | django.request | Internal Server Error: /api/bookings/payments/webhook/
+2026-11-15 15:32:57,685 | ERROR | ticketflow | Rate-limit cache unavailable; allowing request to continue
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\config\throttling.py", line 17, in allow_request
+    return super().allow_request(request, view)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\venv\Lib\site-packages\rest_framework\throttling.py", line 233, in allow_request
+    return super().allow_request(request, view)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\venv\Lib\site-packages\rest_framework\throttling.py", line 123, in allow_request
+    self.history = self.cache.get(self.key, [])
+                   ~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:32:57,687 | ERROR | ticketflow | Cache read failed for version key ticketflow:event-list:version
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 34, in _version
+    value = cache.get(key)
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:32:57,687 | ERROR | ticketflow | Cache read failed for response key ticketflow:event-list:v0:anonymous:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 65, in get_cached_response
+    serialized = cache.get(key)
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:32:57,691 | ERROR | ticketflow | Cache read failed for version key ticketflow:event-list:version
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 34, in _version
+    value = cache.get(key)
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:32:57,692 | ERROR | ticketflow | Cache write failed for response key ticketflow:event-list:v0:anonymous:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 91, in set_cached_response
+    cache.set(key, serialized, timeout=timeout)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 435, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:33:04,034 | ERROR | ticketflow | Cache invalidation failed for version key ticketflow:event-list:version
+Traceback (most recent call last):
+  File "D:\Github_Repos\TicketFlow\events\cache.py", line 98, in _increment_version
+    if not cache.add(key, 1, timeout=None):
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Github_Repos\TicketFlow\events\test_cache.py", line 450, in cache_failure
+    raise ConnectionError("Redis unavailable")
+ConnectionError: Redis unavailable
+2026-11-15 15:33:04,952 | ERROR | ticketflow | Unhandled API exception (RuntimeError)
