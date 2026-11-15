@@ -14,22 +14,30 @@
   />
 </p>
 
-**Django-based Event Ticket Booking & Payment Service**
+# TicketFlow
 
-TicketFlow is a backend service for booking event tickets. It handles seat holds with expiry, concurrent bookings without double-booking, Razorpay payments (test mode) with idempotent webhooks, and background processing with Celery. It is built to demonstrate scalability, concurrency handling, and clean backend design.
+**Django-based event ticket booking and payment service**
 
----
+TicketFlow is a Django REST Framework backend for event ticket bookings. It
+supports expiring seat holds, concurrent booking protection, Razorpay test
+payments with idempotent webhooks, and background processing with Celery.
 
-##  Goals
+## Contents
 
-- Build a real-world backend project from scratch
-- Focus on scalability, concurrency, and clean design
-- Use industry-relevant tools (Django, Postgres, Redis, Celery, etc.)
-- Have a strong project for resume and interviews
+- [Features](#features)
+- [Architecture and booking flow](#architecture-and-booking-flow)
+- [Technology stack](#technology-stack)
+- [Project structure](#project-structure)
+- [Getting started](#getting-started)
+- [Load testing](#load-testing)
+- [Redis response caching](#redis-response-caching)
+- [Admin and operations](#admin-and-operations)
+- [API security and rate limits](#api-security-and-rate-limits)
+- [Results and metrics](#results-and-metrics)
+- [Concepts covered](#concepts-covered)
+- [License](#license)
 
----
-
-##  Key Features
+## Features
 
 - Event & seat management
 - Seat holds with 10-minute expiry
@@ -44,7 +52,7 @@ TicketFlow is a backend service for booking event tickets. It handles seat holds
 
 ---
 
-##  Tech Stack
+## Technology stack
 
 | Area | Technology |
 |---|---|
@@ -57,12 +65,13 @@ TicketFlow is a backend service for booking event tickets. It handles seat holds
 | Containerization | Docker, Docker Compose |
 | Testing | pytest |
 | CI/CD | GitHub Actions |
-| Load testing | Locust / k6 |
+| Load testing | Locust |
 | API docs | OpenAPI |
 
 ---
 
-##  Architecture
+## Architecture and booking flow
+
 <p align="center">
   <img
     src="https://plain-apac-prod-public.komododecks.com/202610/15/iAFPq6FhuQ0cdGWl0fRT/image.png"
@@ -70,14 +79,13 @@ TicketFlow is a backend service for booking event tickets. It handles seat holds
   />
 </p>
 
-
-##  Booking Flow & State Machine
-
 ```
 held ──▶ payment_pending ──▶ confirmed
   │
   └──▶ expired / cancelled / refunded
 ```
+
+Booking flow:
 
 1. User selects seats → a **hold** is created (10 min expiry).
 2. A booking is created and a Razorpay order is generated.
@@ -86,9 +94,7 @@ held ──▶ payment_pending ──▶ confirmed
 5. Celery sends the confirmation email and generates the ticket (PDF/QR).
 6. Unpaid holds are released by the expiry job.
 
----
-
-##  Folder Structure
+## Project structure
 
 ```
 ticketflow/
@@ -98,19 +104,22 @@ ticketflow/
 ├── config/
 ├── core/
 ├── events/
+├── frontend/
+├── loadtest/
 ├── users/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .dockerignore
 ├── README.md
-└── requirements.txt
+├── requirements.txt
+└── requirements-load.txt
 ```
 
 ---
 
-##  Getting Started
+## Getting started
 
-### Run the backend with Docker Compose
+### Backend with Docker Compose
 
 Prerequisites: Docker Desktop (or Docker Engine) with the Compose v2 plugin.
 The Compose stack is intended for local development; Django uses `runserver`,
@@ -172,9 +181,10 @@ database 1 the result backend, and database 2 Django's cache. Configure
 Razorpay test credentials and SMTP values in `.env` when those integrations
 are needed; email uses the console backend by default.
 
-### Frontend
+### Frontend development
 
-The responsive React application is in [`frontend/`](./frontend/README.md). Start Django as above, then in a second PowerShell terminal run:
+The React application is in [`frontend/`](./frontend/README.md). Start the
+backend as described above, then run these commands in PowerShell:
 
 ```powershell
 cd frontend
@@ -183,11 +193,13 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-The Vite development server proxies API calls to Django at `http://127.0.0.1:8000`. See the frontend README for the API inventory, supported backend features, test commands, and production configuration.
+The Vite development server proxies API calls to Django at
+`http://127.0.0.1:8000`. See the frontend README for API details, test
+commands, and production configuration.
 
-### Running tests
+### Running the test suite
 
-```bash
+```cmd
 docker compose exec web pytest
 ```
 
@@ -345,7 +357,7 @@ Run the caching tests with:
 pytest events/test_cache.py
 ```
 
-## Admin dashboard and operations
+## Admin and operations
 
 The Django admin at `/admin/` is for staff users. Booking, payment, hold,
 ticket, webhook-event, and email-delivery records are available for inspection.
@@ -378,7 +390,7 @@ Run the dashboard and admin tests with:
 pytest bookings/tests/test_dashboard_admin.py bookings/tests/test_exceptions.py
 ```
 
-## API rate limits and security
+## API security and rate limits
 
 DRF's `ScopedRateThrottle` uses Django's configured default cache. In
 production, that is Redis database 2 (shared with response caching); tests use
@@ -460,24 +472,28 @@ pytest accounts/test_security.py bookings/tests/test_api_security.py
 
 ---
 
-##  Results & Metrics
+## Results and metrics
 
+The following is the local, read-only, unthrottled Locust baseline. It is a
+single short run, not a production capacity estimate.
 
+| Metric | Baseline result |
+|---|---:|
+| Simulated users | 20 |
+| Duration | 2 minutes |
+| Total requests | 1,812 |
+| Failures | 0 (0.00%) |
+| Throughput | ~15.2 requests/second |
+| Median latency | 13 ms |
+| p95 latency | 20 ms |
+| p99 latency | 36 ms |
+| Maximum latency | 203 ms |
 
-| Test | Result |
-|---|---|
-| Concurrency test | 500 requests for 50 seats → 50 bookings, 0 double-bookings |
-| Idempotency test | 20 retries → 1 charge, 1 booking |
-| Webhook test | 100 duplicate events → no duplicate payments |
-| Hold expiry | Seats released within ~N seconds |
-| Throughput (load test) | Requests/sec and p95 latency (actual measured values) |
-| Query optimization | `EXPLAIN ANALYZE` before/after indexes (e.g. 120 ms → 8 ms) |
-| Test coverage | Number of tests and coverage % |
-| Deployment | Live API URL and working demo |
+The throttled comparison has not been recorded here. Follow the [load testing
+instructions](#load-testing) to run it with the same workload and compare
+request rate, p95 latency, failures, and HTTP 429 counts.
 
----
-
-##  Concepts Covered
+## Concepts covered
 
 - Django & DRF (models, serializers, viewsets)
 - PostgreSQL design & indexing
@@ -494,18 +510,6 @@ pytest accounts/test_security.py bookings/tests/test_api_security.py
 
 ---
 
-## Final Outcome
-
-- Fully functional Django ticket booking backend
-- Handles concurrent bookings correctly
-- Integrated with Razorpay (test mode)
-- Background jobs with Celery
-- Redis caching and rate limiting
-- Tested, dockerized and deployed
-- Well-documented with real results
-
----
-
-##  License
+## License
 
 MIT (or your preferred license)
