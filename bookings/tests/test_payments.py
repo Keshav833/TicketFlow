@@ -11,6 +11,7 @@ from rest_framework.test import APIClient
 
 from bookings.payment_services import create_razorpay_order
 from bookings.payment_services import verify_razorpay_payment
+from bookings.services import create_seat_hold
 from bookings.models import Booking, BookingItem, Hold, OutboxEvent, Payment
 from events.models import Venue, Event, Seat, TicketTier, EventSeat
 from bookings.models import Ticket
@@ -310,6 +311,42 @@ class PaymentRetryTests(TestCase):
         self.assertTrue(
             ticket.qr_code.storage.exists(ticket.qr_code.name)
         )
+
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_expired_checkout_cannot_confirm_after_another_user_holds_seat(
+        self,
+        mock_get_client,
+    ):
+        booking, payment = self.create_pending_payment()
+        hold = booking.holds.get()
+        hold.expires_at = timezone.now() - timedelta(minutes=1)
+        hold.save(update_fields=["expires_at"])
+
+        another_user = User.objects.create_user(
+            username="late_payment_competing_user",
+            password="test-password-456",
+        )
+        replacement_booking = create_seat_hold(
+            user=another_user,
+            event_id=self.event.id,
+            event_seat_ids=[self.event_seat.id],
+        )
+
+        with self.assertRaises(ValidationError):
+            verify_razorpay_payment(
+                user=self.user,
+                booking_id=booking.id,
+                razorpay_order_id=payment.provider_order_id,
+                razorpay_payment_id="pay_late_capture",
+                razorpay_signature="valid_test_signature",
+            )
+
+        booking.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.EXPIRED)
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+        self.assertEqual(replacement_booking.status, Booking.Status.HELD)
+        mock_get_client.assert_not_called()
 
     @patch("bookings.payment_services.get_razorpay_client")
     def test_payment_verification_api_confirms_captured_payment(

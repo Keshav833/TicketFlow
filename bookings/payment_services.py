@@ -9,7 +9,7 @@ from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
-from bookings.services import transition_booking
+from bookings.services import reserve_confirmed_seats, transition_booking
 
 from bookings.models import Booking, Payment, Hold
 from bookings.outbox import create_booking_fulfillment_outbox
@@ -373,6 +373,8 @@ def verify_razorpay_payment(
             raise ValidationError(
                 "Booking status changed during verification."
             )
+
+        reserve_confirmed_seats(booking=booking)
 
         payment.status = Payment.Status.SUCCEEDED
         payment.provider_payment_id = razorpay_payment_id

@@ -7,9 +7,12 @@ logger = logging.getLogger(__name__)
 from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
-from bookings.services import transition_booking
+from bookings.services import reserve_confirmed_seats, transition_booking
 from bookings.models import Booking, Payment, Hold, ProcessedWebhookEvent
-from bookings.outbox import create_booking_fulfillment_outbox
+from bookings.outbox import (
+    create_booking_fulfillment_outbox,
+    create_late_payment_refund_outbox,
+)
 
 
 def verify_webhook_signature(*, payload, signature):
@@ -140,6 +143,44 @@ def process_razorpay_webhook(*, payload, signature, event_id):
                     "Webhook payment amount or currency does not match."
                 )
 
+            if booking.status in {Booking.Status.EXPIRED, Booking.Status.CANCELLED}:
+                if payment.status not in {
+                    Payment.Status.PENDING,
+                    Payment.Status.REFUND_PENDING,
+                    Payment.Status.REFUNDED,
+                }:
+                    raise ValidationError(
+                        "Expired booking payment cannot be reconciled."
+                    )
+                if (
+                    payment.provider_payment_id
+                    and payment.provider_payment_id != provider_payment_id
+                ):
+                    raise ValidationError(
+                        "A different payment has already been recorded."
+                    )
+                if payment.status == Payment.Status.PENDING:
+                    payment.provider_payment_id = provider_payment_id
+                    payment.status = Payment.Status.REFUND_PENDING
+                    payment.save(
+                        update_fields=[
+                            "provider_payment_id",
+                            "status",
+                            "updated_at",
+                        ]
+                    )
+                    create_late_payment_refund_outbox(payment)
+
+                ProcessedWebhookEvent.objects.create(
+                    event_id=event_id,
+                    event_type=event_type,
+                )
+                logger.warning(
+                    "Queued refund for late captured payment on expired booking %s",
+                    booking.id,
+                )
+                return {"detail": "Late payment queued for refund."}
+
             if payment.status == Payment.Status.FAILED:
                 logger.warning(
                     "Captured event rejected for previously failed "
@@ -160,6 +201,8 @@ def process_razorpay_webhook(*, payload, signature, event_id):
                     raise ValidationError(
                         "Booking is not awaiting payment."
                     )
+
+                reserve_confirmed_seats(booking=booking)
 
                 payment.provider_payment_id = provider_payment_id
                 payment.status = Payment.Status.SUCCEEDED

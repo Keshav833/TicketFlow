@@ -3,15 +3,16 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
 from django.contrib.auth import get_user_model
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, transaction
 from django.test import TransactionTestCase
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 from datetime import timedelta
 from decimal import Decimal
 
 from events.models import Venue, Event, Seat, TicketTier, EventSeat
-from bookings.models import Booking, BookingItem, Hold
-from bookings.services import create_seat_hold
+from bookings.models import Booking, BookingItem, ConfirmedSeat, Hold
+from bookings.services import create_seat_hold, reserve_confirmed_seats
 
 
 User = get_user_model()
@@ -112,5 +113,54 @@ class ConcurrentSeatHoldTests(TransactionTestCase):
                 event_seat=self.event_seat,
                 booking__status=Booking.Status.HELD,
             ).count(),
+            1,
+        )
+
+    def test_only_one_pending_booking_can_allocate_the_same_seat(self):
+        first_booking = Booking.objects.create(
+            user=self.user_a,
+            status=Booking.Status.PAYMENT_PENDING,
+            total_amount=Decimal("499.00"),
+        )
+        second_booking = Booking.objects.create(
+            user=self.user_b,
+            status=Booking.Status.PAYMENT_PENDING,
+            total_amount=Decimal("499.00"),
+        )
+        BookingItem.objects.create(
+            booking=first_booking,
+            event_seat=self.event_seat,
+            price=Decimal("499.00"),
+        )
+        BookingItem.objects.create(
+            booking=second_booking,
+            event_seat=self.event_seat,
+            price=Decimal("499.00"),
+        )
+        barrier = Barrier(2)
+
+        def attempt_allocation(booking_id):
+            close_old_connections()
+            try:
+                with transaction.atomic():
+                    booking = Booking.objects.get(pk=booking_id)
+                    barrier.wait(timeout=10)
+                    reserve_confirmed_seats(booking=booking)
+                return "allocated"
+            except ValidationError:
+                return "rejected"
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [
+                executor.submit(attempt_allocation, booking_id)
+                for booking_id in (first_booking.id, second_booking.id)
+            ]
+            results = [future.result(timeout=20) for future in futures]
+
+        self.assertCountEqual(results, ["allocated", "rejected"])
+        self.assertEqual(
+            ConfirmedSeat.objects.filter(event_seat=self.event_seat).count(),
             1,
         )

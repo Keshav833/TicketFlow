@@ -37,6 +37,7 @@ export function Layout() {
             {user ? (
               <>
                 <NavLink to="/my-bookings" onClick={closeMenu}>My bookings</NavLink>
+                <NavLink to="/my-tickets" onClick={closeMenu}>My tickets</NavLink>
                 <NavLink to="/profile" onClick={closeMenu}>Profile</NavLink>
                 <button className="nav-action" onClick={onLogout}>Sign out</button>
               </>

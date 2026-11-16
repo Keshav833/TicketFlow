@@ -214,6 +214,7 @@ REST_FRAMEWORK = {
             "60/minute",
         ),
         "booking_read": os.getenv("THROTTLE_BOOKING_READ_RATE", "60/minute"),
+        "ticket_read": os.getenv("THROTTLE_TICKET_READ_RATE", "60/minute"),
         "hold_create": os.getenv("THROTTLE_HOLD_CREATE_RATE", "10/minute"),
         "payment_order": os.getenv("THROTTLE_PAYMENT_ORDER_RATE", "5/minute"),
         "payment_verify": os.getenv("THROTTLE_PAYMENT_VERIFY_RATE", "10/minute"),

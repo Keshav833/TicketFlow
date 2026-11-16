@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     BookingDetailView,
+    CancelBookingView,
     BookingListView,
     CreateHoldView,
     CreatePaymentOrderView,
@@ -22,6 +23,7 @@ urlpatterns = [
         BookingDetailView.as_view(),
         name="booking-detail",
     ),
+    path("<int:pk>/cancel/", CancelBookingView.as_view(), name="booking-cancel"),
     path(
     "payments/create-order/",
     CreatePaymentOrderView.as_view(),

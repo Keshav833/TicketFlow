@@ -477,3 +477,533 @@ p { line-height: 1.65; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Ticket Wallet & Boarding Pass Styles */
+.ticket-filter-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.filter-chip {
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 9999px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 550;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.filter-chip:hover {
+  border-color: #cbd5e1;
+  color: var(--ink);
+}
+.filter-chip.active {
+  background: var(--ink);
+  color: white;
+  border-color: var(--ink);
+}
+
+.ticket-wallet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.wallet-ticket-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.wallet-ticket-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(25, 38, 68, 0.09);
+}
+
+.wallet-ticket-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.wallet-ticket-event {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.wallet-ticket-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eff2ff;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.wallet-ticket-event h2 {
+  font-size: 1.15rem;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.wallet-ticket-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.wallet-ticket-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wallet-ticket-seat-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #edf2f7;
+}
+
+.wallet-ticket-seat-bar small {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.wallet-ticket-seat-bar strong {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wallet-ticket-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #f1f4f9;
+}
+
+/* Boarding Pass Ticket View */
+.boarding-pass {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: 0 16px 40px rgba(25, 38, 68, 0.08);
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.boarding-pass-main {
+  flex: 1.6;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.boarding-pass-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pass-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.04em;
+}
+
+.pass-brand .brand-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.pass-event-details .pass-title {
+  font-size: 1.65rem;
+  margin-bottom: 16px;
+  line-height: 1.15;
+}
+
+.pass-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.pass-meta-item small {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--muted-light);
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pass-meta-item strong {
+  display: block;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.pass-meta-item span {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.pass-seat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 14px;
+}
+
+.pass-seat-box small {
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.pass-seat-box strong {
+  font-size: 1.1rem;
+  color: var(--accent);
+}
+
+.pass-footer-meta {
+  display: flex;
+  gap: 20px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.boarding-pass-divider {
+  width: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.boarding-pass-divider .notch {
+  width: 32px;
+  height: 32px;
+  background: var(--canvas);
+  border-radius: 50%;
+  position: absolute;
+  z-index: 2;
+  border: 1px solid var(--line);
+}
+
+.boarding-pass-divider .notch-top {
+  top: -16px;
+  clip-path: circle(50% at 50% 100%);
+}
+
+.boarding-pass-divider .notch-bottom {
+  bottom: -16px;
+  clip-path: circle(50% at 50% 0%);
+}
+
+.boarding-pass-divider .perforation {
+  width: 0;
+  height: 100%;
+  border-left: 2px dashed #cbd5e1;
+}
+
+.boarding-pass-stub {
+  flex: 1;
+  padding: 32px;
+  background: #fafbfe;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.pass-qr-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.pass-qr-heading {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--muted-light);
+  margin-bottom: 0;
+}
+
+.pass-qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  padding: 12px;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  border: 1px solid #edf2f7;
+}
+
+.pass-qr-image {
+  width: 160px;
+  height: 160px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.pass-qr-enlarge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.pass-qr-enlarge-btn:hover {
+  background: #eff2ff;
+}
+
+.pass-qr-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-light);
+  padding: 24px;
+}
+
+.pass-qr-instructions {
+  font-size: 0.75rem;
+  color: var(--muted);
+  max-width: 180px;
+  line-height: 1.4;
+}
+
+.ticket-actions-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Enlarged QR Modal */
+.qr-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.qr-modal-content {
+  background: white;
+  border-radius: 20px;
+  width: min(420px, 100%);
+  padding: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.qr-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.qr-modal-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.qr-modal-close {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.qr-modal-close:hover {
+  background: #f1f5f9;
+  color: var(--ink);
+}
+
+.qr-modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.qr-modal-image {
+  width: 260px;
+  height: 260px;
+  object-fit: contain;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px;
+  background: white;
+}
+
+.qr-modal-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.qr-modal-meta strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.qr-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Responsive adjustment for Mobile */
+@media (max-width: 860px) {
+  .boarding-pass {
+    flex-direction: column;
+  }
+  .boarding-pass-divider {
+    width: 100%;
+    height: 32px;
+    flex-direction: row;
+  }
+  .boarding-pass-divider .notch-top {
+    left: -16px;
+    top: 0;
+    clip-path: circle(50% at 100% 50%);
+  }
+  .boarding-pass-divider .notch-bottom {
+    right: -16px;
+    top: 0;
+    bottom: auto;
+    clip-path: circle(50% at 0% 50%);
+  }
+  .boarding-pass-divider .perforation {
+    width: 100%;
+    height: 0;
+    border-left: 0;
+    border-top: 2px dashed #cbd5e1;
+  }
+  .pass-meta-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .pass-seat-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Print Friendly Layout */
+@media print {
+  @page {
+    size: auto;
+    margin: 15mm;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .site-header,
+  .site-footer,
+  .no-print,
+  .button,
+  .back-link,
+  .session-notice {
+    display: none !important;
+  }
+  .content-wrap {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .boarding-pass {
+    box-shadow: none !important;
+    border: 2px solid #111 !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .boarding-pass-stub {
+    background: white !important;
+    border-left: 2px dashed #111 !important;
+  }
+  .pass-seat-strip {
+    background: #f4f4f4 !important;
+    border: 1px solid #ccc !important;
+  }
+  .pass-qr-box {
+    box-shadow: none !important;
+    border: 1px solid #111 !important;
+  }
+  .pass-qr-image {
+    width: 180px !important;
+    height: 180px !important;
+  }
+}

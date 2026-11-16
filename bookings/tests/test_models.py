@@ -10,6 +10,7 @@ from bookings.models import (
     Booking,
     BookingEmailDelivery,
     BookingItem,
+    ConfirmedSeat,
     Hold,
     OutboxEvent,
     Payment,
@@ -168,3 +169,30 @@ def test_database_enforces_payment_ticket_and_event_idempotency(model_records):
         with pytest.raises(IntegrityError):
             with transaction.atomic():
                 create_duplicate()
+
+
+@pytest.mark.django_db
+def test_database_allows_only_one_confirmed_allocation_per_event_seat(
+    model_records,
+):
+    user, event_seat, booking, item = model_records
+    ConfirmedSeat.objects.create(
+        event_seat=event_seat,
+        booking_item=item,
+    )
+    competing_booking = Booking.objects.create(
+        user=user,
+        total_amount=Decimal("100.00"),
+    )
+    competing_item = BookingItem.objects.create(
+        booking=competing_booking,
+        event_seat=event_seat,
+        price=Decimal("100.00"),
+    )
+
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            ConfirmedSeat.objects.create(
+                event_seat=event_seat,
+                booking_item=competing_item,
+            )

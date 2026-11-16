@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from rest_framework import generics,status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,6 +11,7 @@ from config.throttling import SafeScopedRateThrottle
 from .serializers import (
     BookingSerializer,
     CreateHoldSerializer,
+    CustomerTicketSerializer,
     TicketCheckInSerializer,
     CreatePaymentOrderRequestSerializer,
     CreatePaymentOrderResponseSerializer,
@@ -17,8 +19,13 @@ from .serializers import (
     VerifyPaymentResponseSerializer,
     RazorpayWebhookResponseSerializer,
 )
-from .ticket_services import check_in_ticket
-
+from .ticket_services import (
+    build_ticket_download,
+    check_in_ticket,
+    customer_visible_tickets,
+    read_stored_qr,
+)
+from .models import Booking, Ticket
 
 from .webhook_services import process_razorpay_webhook
 
@@ -27,8 +34,7 @@ from .payment_services import (
       verify_razorpay_payment,
 
       )
-from .models import Booking
-from .services import create_seat_hold
+from .services import cancel_booking, create_seat_hold
 
 
 class BookingListView(generics.ListAPIView):
@@ -98,6 +104,14 @@ class CreateHoldView(APIView):
             response_serializer.data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class CancelBookingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        booking = cancel_booking(user=request.user, booking_id=pk)
+        return Response(BookingSerializer(booking).data)
 
 
 @extend_schema(
@@ -219,3 +233,72 @@ class TicketCheckInView(APIView):
             result,
             status=status.HTTP_200_OK,
         )
+
+
+class CustomerTicketAccessMixin:
+    permission_classes = [IsAuthenticated]
+    throttle_scope = "ticket_read"
+    serializer_class = CustomerTicketSerializer
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Ticket.objects.none()
+        return customer_visible_tickets(self.request.user)
+
+
+@extend_schema(
+    responses={200: CustomerTicketSerializer(many=True)},
+    description=(
+        "List tickets belonging to the authenticated customer. "
+        "Only tickets for confirmed, paid bookings are returned."
+    ),
+    tags=["Tickets"],
+)
+class CustomerTicketListView(CustomerTicketAccessMixin, generics.ListAPIView):
+    pass
+
+
+@extend_schema(
+    responses={200: CustomerTicketSerializer},
+    description="Retrieve one ticket owned by the authenticated customer.",
+    tags=["Tickets"],
+)
+class CustomerTicketDetailView(CustomerTicketAccessMixin, generics.RetrieveAPIView):
+    pass
+
+
+class CustomerTicketFileView(CustomerTicketAccessMixin, generics.GenericAPIView):
+    def get_ticket(self):
+        return self.get_object()
+
+
+@extend_schema(
+    responses={200: {"type": "string", "format": "binary"}},
+    description="Return the stored QR image for a ticket owned by the customer.",
+    tags=["Tickets"],
+)
+class CustomerTicketQRView(CustomerTicketFileView):
+    def get(self, request, pk):
+        ticket = self.get_ticket()
+        image = read_stored_qr(ticket)
+        response = HttpResponse(image, content_type="image/png")
+        response["Content-Disposition"] = 'inline; filename="qr.png"'
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+@extend_schema(
+    responses={200: {"type": "string", "format": "binary"}},
+    description="Download a ticket document built from the stored ticket record.",
+    tags=["Tickets"],
+)
+class CustomerTicketDownloadView(CustomerTicketFileView):
+    def get(self, request, pk):
+        ticket = self.get_ticket()
+        document, filename = build_ticket_download(ticket)
+        response = HttpResponse(document, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response

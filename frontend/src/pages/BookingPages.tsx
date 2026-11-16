@@ -13,6 +13,7 @@ function BookingStatus({ status }: { status: Booking['status'] }) {
     held: 'Seat held',
     payment_pending: 'Payment pending',
     confirmed: 'Confirmed',
+    refund_pending: 'Refund pending',
     expired: 'Expired',
     cancelled: 'Cancelled',
     refunded: 'Refunded',
@@ -47,6 +48,7 @@ export function CheckoutPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [reload, setReload] = useState(0)
+  const [cancelling, setCancelling] = useState(false)
 
   const load = useCallback(async () => {
     if (!Number.isInteger(id) || id < 1) {
@@ -274,10 +276,18 @@ export function ConfirmationPage() {
           <button className="button button-secondary button-full" onClick={load}><RefreshCw size={16} /> Refresh status</button>
         )}
         <div className="confirmation-actions">
-          <Link className="button button-primary" to="/my-bookings">My bookings</Link>
+          {confirmed ? (
+            <Link className="button button-primary" to="/my-tickets">View my tickets in wallet</Link>
+          ) : (
+            <Link className="button button-primary" to="/my-bookings">My bookings</Link>
+          )}
           <Link className="button button-secondary" to="/events">Discover more events</Link>
         </div>
-        <p className="ticket-note">Tickets and QR codes are not provided by the current API.</p>
+        {confirmed ? (
+          <p className="ticket-note">Your verified entry passes and QR codes are ready in your ticket wallet.</p>
+        ) : (
+          <p className="ticket-note">Tickets and QR codes are available once booking payment is confirmed.</p>
+        )}
       </section>
     </div>
   )
@@ -361,6 +371,7 @@ export function BookingDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -379,6 +390,20 @@ export function BookingDetailsPage() {
 
   if (loading) return <div className="content-wrap page-section"><LoadingState label="Loading booking details" /></div>
   if (error || !booking) return <div className="content-wrap page-section"><ErrorState message={error || 'Booking unavailable.'} onRetry={() => setReload((value) => value + 1)} /></div>
+
+  const cancel = async () => {
+    if (cancelling || !window.confirm('Cancel this booking? Paid eligible bookings will be refunded.')) return
+    setCancelling(true)
+    setError('')
+    try {
+      const { data } = await api.cancelBooking(booking.id)
+      setBooking(data)
+    } catch (cause) {
+      setError(getApiErrorMessage(cause))
+    } finally {
+      setCancelling(false)
+    }
+  }
 
   return (
     <div className="content-wrap page-section narrow-page">
@@ -399,10 +424,24 @@ export function BookingDetailsPage() {
           {booking.status === 'payment_pending' && (
             <Link className="button button-primary button-full" to={`/checkout/${booking.id}`}>Continue payment <ArrowRight size={17} /></Link>
           )}
-          {booking.status === 'confirmed' && <Link className="button button-primary button-full" to={`/booking-confirmation/${booking.id}`}>View confirmation <ArrowRight size={17} /></Link>}
+          {booking.status === 'confirmed' && (
+            <>
+              <Link className="button button-primary button-full" to="/my-tickets">
+                View tickets in wallet <ArrowRight size={17} />
+              </Link>
+              <Link className="button button-secondary button-full" to={`/booking-confirmation/${booking.id}`}>
+                View confirmation
+              </Link>
+            </>
+          )}
+          {(['held', 'payment_pending', 'confirmed'] as Booking['status'][]).includes(booking.status) && (
+            <button className="button button-secondary button-full" disabled={cancelling} onClick={cancel}>
+              {cancelling ? 'Cancelling…' : booking.status === 'confirmed' ? 'Cancel & request refund' : 'Cancel booking'}
+            </button>
+          )}
           <Link to="/events" className="button button-secondary button-full">Browse events</Link>
         </div>
-        <p className="ticket-note">Only booking actions supported by the current API are shown. Ticket downloads and refunds are not exposed.</p>
+        {booking.status === 'refund_pending' && <p className="ticket-note">Your refund is being processed. The booking cannot be used.</p>}
       </section>
     </div>
   )

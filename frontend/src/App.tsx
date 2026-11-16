@@ -11,6 +11,7 @@ import { HomePage } from './pages/HomePage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { SeatSelectionPage } from './pages/SeatSelectionPage'
+import { TicketDetailPage, TicketWalletPage } from './pages/TicketPages'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -70,6 +71,12 @@ export function App() {
           } />
           <Route path="my-bookings/:bookingId" element={
             <ProtectedRoute><BookingDetailsPage /></ProtectedRoute>
+          } />
+          <Route path="my-tickets" element={
+            <ProtectedRoute><TicketWalletPage /></ProtectedRoute>
+          } />
+          <Route path="my-tickets/:ticketId" element={
+            <ProtectedRoute><TicketDetailPage /></ProtectedRoute>
           } />
           <Route path="profile" element={
             <ProtectedRoute><ProfilePage /></ProtectedRoute>

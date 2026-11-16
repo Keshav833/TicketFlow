@@ -20,6 +20,7 @@ from bookings.tasks import (
     fulfill_confirmed_booking,
     recover_stale_email_deliveries,
     recover_stale_outbox_events,
+    refund_late_payment,
     send_booking_confirmation_email_task,
 )
 from events.models import Event, EventSeat, Seat, TicketTier, Venue
@@ -191,3 +192,48 @@ class BookingCeleryTaskTests(TestCase):
         self.assertEqual(delivery.status, BookingEmailDelivery.Status.PENDING)
         self.assertIsNone(delivery.locked_at)
         enqueue.assert_called_once_with(self.booking.id)
+
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_late_payment_refund_marks_payment_refunded(self, mock_get_client):
+        expired_booking = Booking.objects.create(
+            user=self.user,
+            status=Booking.Status.EXPIRED,
+            total_amount=Decimal("499.00"),
+        )
+        late_payment = Payment.objects.create(
+            booking=expired_booking,
+            provider="razorpay",
+            provider_order_id="order_late_refund",
+            provider_payment_id="pay_late_refund",
+            idempotency_key="late-refund-payment",
+            status=Payment.Status.REFUND_PENDING,
+            amount=Decimal("499.00"),
+        )
+        refund_event = OutboxEvent.objects.create(
+            event_type="late_payment_refund",
+            aggregate_id=late_payment.id,
+            idempotency_key=f"late_payment_refund:{late_payment.id}",
+            status=OutboxEvent.Status.DISPATCHED,
+        )
+        mock_get_client.return_value.payment.refund.return_value = {
+            "id": "rfnd_late_payment",
+        }
+
+        result = refund_late_payment.apply(
+            args=(refund_event.id,),
+            throw=True,
+        ).get()
+
+        late_payment.refresh_from_db()
+        refund_event.refresh_from_db()
+        self.assertEqual(result, {"status": "refunded", "payment_id": late_payment.id})
+        self.assertEqual(late_payment.status, Payment.Status.REFUNDED)
+        self.assertEqual(late_payment.provider_refund_id, "rfnd_late_payment")
+        self.assertEqual(refund_event.status, OutboxEvent.Status.COMPLETED)
+        mock_get_client.return_value.payment.refund.assert_called_once_with(
+            "pay_late_refund",
+            {
+                "amount": 49900,
+                "notes": {"reason": "booking_hold_expired"},
+            },
+        )

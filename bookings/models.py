@@ -11,6 +11,7 @@ class Booking(models.Model):
         HELD = "held", "Held"
         PAYMENT_PENDING = "payment_pending", "Payment Pending"
         CONFIRMED = "confirmed", "Confirmed"
+        REFUND_PENDING = "refund_pending", "Refund Pending"
         EXPIRED = "expired", "Expired"
         CANCELLED = "cancelled", "Cancelled"
         REFUNDED = "refunded", "Refunded"
@@ -80,6 +81,25 @@ class BookingItem(models.Model):
     def __str__(self):
         return f"{self.booking_id} - {self.event_seat_id}"
 
+
+class ConfirmedSeat(models.Model):
+    """The database-backed inventory allocation for a confirmed seat."""
+
+    event_seat = models.OneToOneField(
+        EventSeat,
+        on_delete=models.PROTECT,
+        related_name="confirmed_allocation",
+    )
+    booking_item = models.OneToOneField(
+        BookingItem,
+        on_delete=models.PROTECT,
+        related_name="confirmed_allocation",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Confirmed allocation for event seat {self.event_seat_id}"
+
     
 
 class Hold(models.Model):
@@ -139,6 +159,7 @@ class Payment(models.Model):
         PENDING = "pending", "Pending"
         SUCCEEDED = "succeeded", "Succeeded"
         FAILED = "failed", "Failed"
+        REFUND_PENDING = "refund_pending", "Refund Pending"
         REFUNDED = "refunded", "Refunded"
 
 
@@ -170,6 +191,11 @@ class Payment(models.Model):
     max_length=100,
     blank=True,
     db_index=True,
+    )
+
+    provider_refund_id = models.CharField(
+        max_length=255,
+        blank=True,
     )
 
     #The unique idempotency_key gives us a database-level guarantee that the same key cannot be recorded twice.

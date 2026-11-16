@@ -9,7 +9,7 @@ from rest_framework.exceptions import ValidationError
 
 from events.cache import invalidate_seat_availability
 from events.models import EventSeat
-from .models import Booking, BookingItem, Hold
+from .models import Booking, BookingItem, ConfirmedSeat, Hold, Payment, Ticket
 
 
 logger = logging.getLogger("ticketflow")
@@ -31,8 +31,9 @@ def transition_booking(*, booking, new_status):
             Booking.Status.CANCELLED,
         },
         Booking.Status.CONFIRMED: {
-            Booking.Status.REFUNDED,
+            Booking.Status.REFUND_PENDING,
         },
+        Booking.Status.REFUND_PENDING: {Booking.Status.REFUNDED},
         Booking.Status.EXPIRED: set(),
         Booking.Status.CANCELLED: set(),
         Booking.Status.REFUNDED: set(),
@@ -60,6 +61,94 @@ def transition_booking(*, booking, new_status):
 
     return booking
 
+
+@transaction.atomic
+def cancel_booking(*, user, booking_id):
+    """Cancel an unpaid booking or queue a refund for an eligible paid one."""
+    booking = (
+        Booking.objects.select_for_update()
+        .filter(id=booking_id, user=user)
+        .first()
+    )
+    if booking is None:
+        raise ValidationError("Booking not found.")
+
+    if booking.status in {Booking.Status.HELD, Booking.Status.PAYMENT_PENDING}:
+        booking.holds.filter(status=Hold.Status.ACTIVE).update(
+            status=Hold.Status.CANCELLED
+        )
+        transition_booking(booking=booking, new_status=Booking.Status.CANCELLED)
+        return booking
+
+    if booking.status != Booking.Status.CONFIRMED:
+        raise ValidationError("This booking cannot be cancelled.")
+
+    if Ticket.objects.filter(
+        booking_item__booking=booking,
+        status=Ticket.Status.USED,
+    ).exists():
+        raise ValidationError("Used tickets cannot be refunded.")
+    if BookingItem.objects.filter(
+        booking=booking,
+        event_seat__event__starts_at__lte=timezone.now(),
+    ).exists():
+        raise ValidationError("Bookings cannot be refunded after the event starts.")
+
+    payment = (
+        Payment.objects.select_for_update()
+        .filter(booking=booking, status=Payment.Status.SUCCEEDED)
+        .first()
+    )
+    if payment is None:
+        raise ValidationError("No successful payment is available for refund.")
+
+    transition_booking(booking=booking, new_status=Booking.Status.REFUND_PENDING)
+    payment.status = Payment.Status.REFUND_PENDING
+    payment.save(update_fields=["status", "updated_at"])
+    from bookings.outbox import create_booking_refund_outbox
+
+    create_booking_refund_outbox(payment)
+    return booking
+
+
+def reserve_confirmed_seats(*, booking):
+    """Atomically allocate every seat in a pending booking.
+
+    ``ConfirmedSeat.event_seat`` is one-to-one, so PostgreSQL is the final
+    authority that an event seat has only one confirmed booking item.
+    """
+    if booking.status != Booking.Status.PAYMENT_PENDING:
+        raise ValidationError("Booking is not awaiting payment.")
+
+    items = list(
+        BookingItem.objects.filter(booking=booking)
+        .select_related("event_seat")
+        .order_by("event_seat_id")
+    )
+    if not items:
+        raise ValidationError("Booking has no seats to confirm.")
+
+    seat_ids = [item.event_seat_id for item in items]
+    locked_seats = list(
+        EventSeat.objects.select_for_update()
+        .filter(id__in=seat_ids)
+        .order_by("id")
+    )
+    if len(locked_seats) != len(seat_ids):
+        raise ValidationError("One or more booking seats no longer exist.")
+
+    items_by_seat = {item.event_seat_id: item for item in items}
+    for seat in locked_seats:
+        item = items_by_seat[seat.id]
+        allocation, created = ConfirmedSeat.objects.get_or_create(
+            event_seat=seat,
+            defaults={"booking_item": item},
+        )
+        if not created and allocation.booking_item_id != item.id:
+            raise ValidationError(
+                "One or more seats have already been confirmed."
+            )
+
 @transaction.atomic
 def create_seat_hold(*, user, event_id, event_seat_ids):
     now = timezone.now()
@@ -83,12 +172,43 @@ def create_seat_hold(*, user, event_id, event_seat_ids):
 
     seat_ids = [seat.id for seat in seats]
 
-    # Mark old holds as expired before checking availability.
-    Hold.objects.filter(
-        event_seat_id__in=seat_ids,
-        status=Hold.Status.ACTIVE,
-        expires_at__lte=now,
-    ).update(status=Hold.Status.EXPIRED)
+    # Mark old holds as expired before checking availability. Their bookings
+    # must become terminal too: otherwise a late payment could confirm an
+    # expired booking after this transaction lets another customer hold the
+    # same seat.
+    expired_holds = list(
+        Hold.objects.select_for_update()
+        .filter(
+            event_seat_id__in=seat_ids,
+            status=Hold.Status.ACTIVE,
+            expires_at__lte=now,
+        )
+        .order_by("id")
+    )
+    expired_hold_ids = [hold.id for hold in expired_holds]
+    expired_booking_ids = {hold.booking_id for hold in expired_holds}
+
+    if expired_hold_ids:
+        Hold.objects.filter(id__in=expired_hold_ids).update(
+            status=Hold.Status.EXPIRED
+        )
+
+    expired_bookings = (
+        Booking.objects.select_for_update()
+        .filter(
+            id__in=expired_booking_ids,
+            status__in=[
+                Booking.Status.HELD,
+                Booking.Status.PAYMENT_PENDING,
+            ],
+        )
+        .order_by("id")
+    )
+    for expired_booking in expired_bookings:
+        transition_booking(
+            booking=expired_booking,
+            new_status=Booking.Status.EXPIRED,
+        )
 
     # Reject seats that are still held.
     active_holds = Hold.objects.filter(
@@ -193,7 +313,10 @@ def expire_stale_holds():
         .select_for_update()
         .filter(
             id__in=booking_ids,
-            status=Booking.Status.HELD,
+            status__in=[
+                Booking.Status.HELD,
+                Booking.Status.PAYMENT_PENDING,
+            ],
         )
         .order_by("id")
     )

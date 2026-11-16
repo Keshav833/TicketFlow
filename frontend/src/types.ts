@@ -41,6 +41,7 @@ export type BookingStatus =
   | 'held'
   | 'payment_pending'
   | 'confirmed'
+  | 'refund_pending'
   | 'expired'
   | 'cancelled'
   | 'refunded'
@@ -53,6 +54,29 @@ export interface Booking {
   updated_at: string
   hold_expires_at: string | null
   items: BookingItem[]
+}
+
+export type TicketStatus = 'issued' | 'used' | 'cancelled'
+
+export interface CustomerTicket {
+  id: number
+  ticket_number: string
+  status: TicketStatus
+  issued_at: string
+  used_at: string | null
+  booking_id: number
+  booking_status: BookingStatus
+  price: string
+  event_id: number
+  event_name: string
+  event_starts_at: string
+  event_ends_at: string
+  venue_name: string
+  venue_city: string
+  seat_row: string
+  seat_number: number
+  tier_name: string
+  qr_available: boolean
 }
 
 export interface Paginated<T> {

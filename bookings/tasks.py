@@ -8,7 +8,9 @@ from django.utils import timezone
 from bookings.email_services import send_booking_confirmation_email
 from bookings.models import Booking, BookingEmailDelivery, OutboxEvent, Payment
 from bookings.outbox import (
+    BOOKING_REFUND_EVENT,
     BOOKING_FULFILLMENT_EVENT,
+    LATE_PAYMENT_REFUND_EVENT,
     claim_pending_outbox_events,
     create_booking_fulfillment_outbox,
     mark_outbox_event_completed,
@@ -29,6 +31,9 @@ def dispatch_pending_outbox_events(self):
             if event.event_type == BOOKING_FULFILLMENT_EVENT:
                 mark_outbox_event_dispatched(event)
                 fulfill_confirmed_booking.delay(event.id)
+            elif event.event_type in {LATE_PAYMENT_REFUND_EVENT, BOOKING_REFUND_EVENT}:
+                mark_outbox_event_dispatched(event)
+                refund_late_payment.delay(event.id)
             else:
                 logger.warning("Unsupported outbox event type: %s", event.event_type)
                 mark_outbox_event_completed(event, error="unsupported event type")
@@ -103,6 +108,74 @@ def fulfill_confirmed_booking(self, outbox_event_id):
         return {"status": "fulfilled", "booking_id": booking.id}
     except Exception as exc:
         logger.exception("Fulfillment failed for outbox event %s", outbox_event_id)
+        if event is not None:
+            event = OutboxEvent.objects.get(pk=outbox_event_id)
+            mark_outbox_event_failed(event, error=str(exc), retry_minutes=2)
+        raise
+
+
+@shared_task(bind=True, max_retries=6, retry_backoff=60)
+def refund_late_payment(self, outbox_event_id):
+    """Refund a captured payment whose booking expired before confirmation."""
+    event = None
+    try:
+        with transaction.atomic():
+            event = OutboxEvent.objects.select_for_update().get(pk=outbox_event_id)
+            if event.status == OutboxEvent.Status.COMPLETED:
+                return {"status": "already_completed"}
+
+            payment = Payment.objects.select_for_update().get(pk=event.aggregate_id)
+            if payment.status == Payment.Status.REFUNDED:
+                mark_outbox_event_completed(event)
+                return {"status": "already_refunded", "payment_id": payment.id}
+            if payment.status != Payment.Status.REFUND_PENDING:
+                mark_outbox_event_completed(event, error="payment not awaiting refund")
+                return {"status": "skipped", "payment_id": payment.id}
+            if not payment.provider_payment_id:
+                raise RuntimeError("late payment is missing its provider payment ID")
+
+            payment_id = payment.id
+            provider_payment_id = payment.provider_payment_id
+            amount = int(payment.amount * 100)
+
+        from bookings.payment_services import get_razorpay_client
+
+        refund = get_razorpay_client().payment.refund(
+            provider_payment_id,
+            {
+                "amount": amount,
+                "notes": {"reason": "booking_hold_expired"},
+            },
+        )
+
+        with transaction.atomic():
+            event = OutboxEvent.objects.select_for_update().get(pk=outbox_event_id)
+            payment = Payment.objects.select_for_update().select_related("booking").get(pk=payment_id)
+            if payment.status == Payment.Status.REFUNDED:
+                mark_outbox_event_completed(event)
+                return {"status": "already_refunded", "payment_id": payment.id}
+
+            payment.provider_refund_id = refund.get("id", "")
+            payment.status = Payment.Status.REFUNDED
+            payment.save(update_fields=["provider_refund_id", "status", "updated_at"])
+            booking = payment.booking
+            if booking.status == Booking.Status.REFUND_PENDING:
+                from bookings.services import transition_booking
+                from bookings.models import Ticket
+
+                transition_booking(
+                    booking=booking,
+                    new_status=Booking.Status.REFUNDED,
+                )
+                Ticket.objects.filter(
+                    booking_item__booking=booking,
+                    status=Ticket.Status.ISSUED,
+                ).update(status=Ticket.Status.CANCELLED)
+            mark_outbox_event_completed(event)
+        logger.warning("Refunded late payment %s", payment_id)
+        return {"status": "refunded", "payment_id": payment_id}
+    except Exception as exc:
+        logger.exception("Late-payment refund failed for outbox event %s", outbox_event_id)
         if event is not None:
             event = OutboxEvent.objects.get(pk=outbox_event_id)
             mark_outbox_event_failed(event, error=str(exc), retry_minutes=2)

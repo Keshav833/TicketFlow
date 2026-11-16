@@ -2,6 +2,7 @@ import type { AxiosRequestConfig } from 'axios'
 import { apiClient } from './client'
 import type {
   Booking,
+  CustomerTicket,
   EventRecord,
   EventSeat,
   Paginated,
@@ -49,6 +50,8 @@ export const api = {
     apiClient.get<Paginated<Booking>>('/bookings/', config),
   booking: (id: number, config?: AxiosRequestConfig) =>
     apiClient.get<Booking>(`/bookings/${id}/`, config),
+  cancelBooking: (id: number) =>
+    apiClient.post<Booking>(`/bookings/${id}/cancel/`),
   createPaymentOrder: (bookingId: number) =>
     apiClient.post<PaymentOrder>('/bookings/payments/create-order/', {
       booking_id: bookingId,
@@ -60,4 +63,18 @@ export const api = {
     razorpay_signature: string
   }) =>
     apiClient.post<PaymentVerification>('/bookings/payments/verify/', payload),
+  tickets: (config?: AxiosRequestConfig) =>
+    apiClient.get<Paginated<CustomerTicket>>('/tickets/', config),
+  ticket: (id: number, config?: AxiosRequestConfig) =>
+    apiClient.get<CustomerTicket>(`/tickets/${id}/`, config),
+  ticketQr: (id: number, config?: AxiosRequestConfig) =>
+    apiClient.get<Blob>(`/tickets/${id}/qr/`, {
+      ...config,
+      responseType: 'blob',
+    }),
+  downloadTicket: (id: number, config?: AxiosRequestConfig) =>
+    apiClient.get<Blob>(`/tickets/${id}/download/`, {
+      ...config,
+      responseType: 'blob',
+    }),
 }

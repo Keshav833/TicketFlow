@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Booking, BookingItem
+from .models import Booking, BookingItem, Ticket
 
 from events.models import EventSeat
 
@@ -119,6 +119,87 @@ class CreateHoldSerializer(serializers.Serializer):
 
 class TicketCheckInSerializer(serializers.Serializer):
     verification_token = serializers.UUIDField()
+
+
+class CustomerTicketSerializer(serializers.ModelSerializer):
+    booking_id = serializers.IntegerField(
+        source="booking_item.booking_id",
+        read_only=True,
+    )
+    booking_status = serializers.CharField(
+        source="booking_item.booking.status",
+        read_only=True,
+    )
+    price = serializers.DecimalField(
+        source="booking_item.price",
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
+    )
+    event_id = serializers.IntegerField(
+        source="booking_item.event_seat.event_id",
+        read_only=True,
+    )
+    event_name = serializers.CharField(
+        source="booking_item.event_seat.event.name",
+        read_only=True,
+    )
+    event_starts_at = serializers.DateTimeField(
+        source="booking_item.event_seat.event.starts_at",
+        read_only=True,
+    )
+    event_ends_at = serializers.DateTimeField(
+        source="booking_item.event_seat.event.ends_at",
+        read_only=True,
+    )
+    venue_name = serializers.CharField(
+        source="booking_item.event_seat.event.venue.name",
+        read_only=True,
+    )
+    venue_city = serializers.CharField(
+        source="booking_item.event_seat.event.venue.city",
+        read_only=True,
+    )
+    seat_row = serializers.CharField(
+        source="booking_item.event_seat.seat.row",
+        read_only=True,
+    )
+    seat_number = serializers.IntegerField(
+        source="booking_item.event_seat.seat.number",
+        read_only=True,
+    )
+    tier_name = serializers.CharField(
+        source="booking_item.event_seat.ticket_tier.name",
+        read_only=True,
+    )
+    qr_available = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Ticket
+        fields = [
+            "id",
+            "ticket_number",
+            "status",
+            "issued_at",
+            "used_at",
+            "booking_id",
+            "booking_status",
+            "price",
+            "event_id",
+            "event_name",
+            "event_starts_at",
+            "event_ends_at",
+            "venue_name",
+            "venue_city",
+            "seat_row",
+            "seat_number",
+            "tier_name",
+            "qr_available",
+        ]
+        read_only_fields = fields
+
+    def get_qr_available(self, ticket) -> bool:
+        return bool(ticket.qr_code)
 
 
 

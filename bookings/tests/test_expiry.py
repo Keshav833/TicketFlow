@@ -106,6 +106,22 @@ class ExpireStaleHoldsTests(TestCase):
         self.assertEqual(hold.status, Hold.Status.EXPIRED)
         self.assertEqual(booking.status, Booking.Status.EXPIRED)
 
+    def test_expired_payment_pending_booking_becomes_expired(self):
+        booking, hold = self.create_booking_and_hold(
+            timezone.now() - timedelta(minutes=1)
+        )
+        booking.status = Booking.Status.PAYMENT_PENDING
+        booking.save(update_fields=["status"])
+
+        count = expire_stale_holds()
+
+        hold.refresh_from_db()
+        booking.refresh_from_db()
+
+        self.assertEqual(count, 1)
+        self.assertEqual(hold.status, Hold.Status.EXPIRED)
+        self.assertEqual(booking.status, Booking.Status.EXPIRED)
+
     def test_future_hold_remains_active(self):
         booking, hold = self.create_booking_and_hold(
             timezone.now() + timedelta(minutes=5)

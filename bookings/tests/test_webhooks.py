@@ -24,6 +24,7 @@ from bookings.models import (
 )
 from events.models import Event, EventSeat, Seat, TicketTier, Venue
 from bookings.tasks import dispatch_pending_outbox_events
+from bookings.services import expire_stale_holds
 
 
 User = get_user_model()
@@ -178,13 +179,44 @@ class RazorpayWebhookTests(TestCase):
 
         self.assertEqual(ticket.status, Ticket.Status.ISSUED)
         self.assertTrue(ticket.qr_code)
-
-        # Verify QR image exists in storage.
         self.assertTrue(
             ticket.qr_code.storage.exists(ticket.qr_code.name)
         )
 
+    @patch("bookings.payment_services.get_razorpay_client")
+    def test_late_captured_webhook_queues_refund(
+        self,
+        mock_get_client,
+    ):
+        self.hold.expires_at = timezone.now() - timedelta(minutes=1)
+        self.hold.save(update_fields=["expires_at"])
+        expire_stale_holds()
+        mock_get_client.return_value.payment.refund.return_value = {
+            "id": "rfnd_late_capture_1",
+        }
 
+        payload = self.make_payload("payment.captured")
+        response = self.send_event(payload, "event_late_capture_1")
+
+        self.assertEqual(response.status_code, 200)
+        self.booking.refresh_from_db()
+        self.payment.refresh_from_db()
+        self.assertEqual(self.booking.status, Booking.Status.EXPIRED)
+        self.assertEqual(self.payment.status, Payment.Status.REFUND_PENDING)
+        self.assertEqual(self.payment.provider_refund_id, "")
+        mock_get_client.assert_not_called()
+        self.assertTrue(
+            ProcessedWebhookEvent.objects.filter(
+                event_id="event_late_capture_1"
+            ).exists()
+        )
+        self.assertTrue(
+            OutboxEvent.objects.filter(
+                event_type="late_payment_refund",
+                aggregate_id=self.payment.id,
+                status=OutboxEvent.Status.PENDING,
+            ).exists()
+        )
 
     def test_invalid_signature_is_rejected(self):
         payload = self.make_payload("payment.captured")
