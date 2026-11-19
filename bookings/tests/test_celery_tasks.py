@@ -194,7 +194,7 @@ class BookingCeleryTaskTests(TestCase):
         enqueue.assert_called_once_with(self.booking.id)
 
     @patch("bookings.payment_services.get_razorpay_client")
-    def test_late_payment_refund_marks_payment_refunded(self, mock_get_client):
+    def test_late_payment_refund_is_submitted_pending_provider_confirmation(self, mock_get_client):
         expired_booking = Booking.objects.create(
             user=self.user,
             status=Booking.Status.EXPIRED,
@@ -226,14 +226,14 @@ class BookingCeleryTaskTests(TestCase):
 
         late_payment.refresh_from_db()
         refund_event.refresh_from_db()
-        self.assertEqual(result, {"status": "refunded", "payment_id": late_payment.id})
-        self.assertEqual(late_payment.status, Payment.Status.REFUNDED)
+        self.assertEqual(result["status"], "submitted")
+        self.assertEqual(late_payment.status, Payment.Status.REFUND_PENDING)
         self.assertEqual(late_payment.provider_refund_id, "rfnd_late_payment")
         self.assertEqual(refund_event.status, OutboxEvent.Status.COMPLETED)
         mock_get_client.return_value.payment.refund.assert_called_once_with(
             "pay_late_refund",
             {
                 "amount": 49900,
-                "notes": {"reason": "booking_hold_expired"},
+                "notes": {"ticketflow_refund_key": f"late-payment:{late_payment.id}"},
             },
         )

@@ -435,13 +435,50 @@ export function BookingDetailsPage() {
             </>
           )}
           {(['held', 'payment_pending', 'confirmed'] as Booking['status'][]).includes(booking.status) && (
-            <button className="button button-secondary button-full" disabled={cancelling} onClick={cancel}>
-              {cancelling ? 'Cancelling…' : booking.status === 'confirmed' ? 'Cancel & request refund' : 'Cancel booking'}
-            </button>
+            <div className="cancellation-section">
+              <div className="cancellation-policy-box">
+                <small className="cancellation-policy-title">Cancellation & Refund Policy</small>
+                <p>
+                  Free cancellation with full refund is available up to 2 hours before the event start time.
+                  {booking.status === 'confirmed' && (
+                    <span> Eligible refund: <strong>{formatINR(booking.total_amount)}</strong></span>
+                  )}
+                </p>
+              </div>
+              <button
+                className="button button-secondary button-full"
+                disabled={cancelling}
+                onClick={cancel}
+              >
+                {cancelling
+                  ? 'Processing cancellation…'
+                  : booking.status === 'confirmed'
+                    ? 'Cancel booking & request full refund'
+                    : 'Cancel booking'}
+              </button>
+            </div>
           )}
           <Link to="/events" className="button button-secondary button-full">Browse events</Link>
         </div>
-        {booking.status === 'refund_pending' && <p className="ticket-note">Your refund is being processed. The booking cannot be used.</p>}
+        {booking.status === 'refund_pending' && (
+          <div className="ticket-note">
+            <p><strong>Cancellation requested:</strong> Your refund of {booking.cancellation ? formatINR(booking.cancellation.refund_amount) : formatINR(booking.total_amount)} is being processed.</p>
+            {booking.refunds.map((refund) => (
+              <p key={refund.id}>
+                Refund {formatINR(refund.amount)}: <strong>{refund.status === 'processed' ? 'processed' : refund.status === 'failed' ? 'failed' : 'pending confirmation'}</strong>.
+              </p>
+            ))}
+            <p>Your tickets have been invalidated and cannot be used for venue check-in.</p>
+          </div>
+        )}
+        {booking.status === 'refunded' && booking.refunds.length > 0 && (
+          <div className="ticket-note">
+            <p><strong>Refund processed:</strong> {booking.refunds.filter((refund) => refund.status === 'processed').map((refund) => formatINR(refund.amount)).join(', ')}.</p>
+          </div>
+        )}
+        {booking.status === 'cancelled' && (
+          <p className="ticket-note">This booking has been cancelled. Any temporary seat holds were released.</p>
+        )}
       </section>
     </div>
   )

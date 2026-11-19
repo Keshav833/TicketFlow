@@ -9,7 +9,19 @@ from rest_framework.exceptions import ValidationError
 
 from events.cache import invalidate_seat_availability
 from events.models import EventSeat
-from .models import Booking, BookingItem, ConfirmedSeat, Hold, Payment, Ticket
+from .cancellation_policy import (
+    calculate_refund_amount,
+    validate_cancellation_eligibility,
+)
+from .models import (
+    Booking,
+    BookingCancellation,
+    BookingItem,
+    ConfirmedSeat,
+    Hold,
+    Payment,
+    Ticket,
+)
 
 
 logger = logging.getLogger("ticketflow")
@@ -63,37 +75,65 @@ def transition_booking(*, booking, new_status):
 
 
 @transaction.atomic
-def cancel_booking(*, user, booking_id):
-    """Cancel an unpaid booking or queue a refund for an eligible paid one."""
+def cancel_booking(
+    *,
+    user,
+    booking_id: int,
+    reason: str = "",
+    initiator_type: str = BookingCancellation.Initiator.CUSTOMER,
+):
+    """Cancel an unpaid booking or queue a refund for an eligible paid one.
+
+    Ensures atomic locking, policy validation, idempotency, ticket invalidation,
+    inventory releasing, and auditable cancellation tracking.
+    """
     booking = (
         Booking.objects.select_for_update()
-        .filter(id=booking_id, user=user)
+        .filter(id=booking_id)
         .first()
     )
     if booking is None:
         raise ValidationError("Booking not found.")
 
+    # Validate eligibility and ownership
+    validate_cancellation_eligibility(booking=booking, user=user)
+
+    # Idempotent return for repeated cancellations
+    if booking.status in {
+        Booking.Status.CANCELLED,
+        Booking.Status.REFUND_PENDING,
+        Booking.Status.REFUNDED,
+    }:
+        return booking
+
+    # Handle unpaid booking cancellation (HELD or PAYMENT_PENDING)
     if booking.status in {Booking.Status.HELD, Booking.Status.PAYMENT_PENDING}:
+        active_holds = list(booking.holds.filter(status=Hold.Status.ACTIVE))
         booking.holds.filter(status=Hold.Status.ACTIVE).update(
             status=Hold.Status.CANCELLED
         )
         transition_booking(booking=booking, new_status=Booking.Status.CANCELLED)
+
+        # Audit record
+        BookingCancellation.objects.get_or_create(
+            booking=booking,
+            defaults={
+                "initiator_type": initiator_type,
+                "user": user,
+                "reason": reason,
+                "refund_eligible": False,
+                "refund_amount": Decimal("0.00"),
+            },
+        )
+
+        # Invalidate cache for affected events
+        event_ids = {hold.event_seat.event_id for hold in active_holds}
+        for event_id in event_ids:
+            transaction.on_commit(lambda eid=event_id: invalidate_seat_availability(eid))
+
         return booking
 
-    if booking.status != Booking.Status.CONFIRMED:
-        raise ValidationError("This booking cannot be cancelled.")
-
-    if Ticket.objects.filter(
-        booking_item__booking=booking,
-        status=Ticket.Status.USED,
-    ).exists():
-        raise ValidationError("Used tickets cannot be refunded.")
-    if BookingItem.objects.filter(
-        booking=booking,
-        event_seat__event__starts_at__lte=timezone.now(),
-    ).exists():
-        raise ValidationError("Bookings cannot be refunded after the event starts.")
-
+    # Confirmed booking cancellation
     payment = (
         Payment.objects.select_for_update()
         .filter(booking=booking, status=Payment.Status.SUCCEEDED)
@@ -102,12 +142,47 @@ def cancel_booking(*, user, booking_id):
     if payment is None:
         raise ValidationError("No successful payment is available for refund.")
 
+    refund_amount = calculate_refund_amount(booking)
+
+    # Invalidate tickets immediately so QR codes cannot be checked in
+    Ticket.objects.filter(
+        booking_item__booking=booking,
+        status=Ticket.Status.ISSUED,
+    ).update(status=Ticket.Status.CANCELLED)
+
+    # Release confirmed seat allocations
+    ConfirmedSeat.objects.filter(booking_item__booking=booking).delete()
+
+    # Invalidate seat availability cache for affected events
+    event_ids = set(
+        BookingItem.objects.filter(booking=booking)
+        .values_list("event_seat__event_id", flat=True)
+    )
+    for event_id in event_ids:
+        transaction.on_commit(lambda eid=event_id: invalidate_seat_availability(eid))
+
+    # Transition booking and payment status
     transition_booking(booking=booking, new_status=Booking.Status.REFUND_PENDING)
     payment.status = Payment.Status.REFUND_PENDING
     payment.save(update_fields=["status", "updated_at"])
-    from bookings.outbox import create_booking_refund_outbox
 
-    create_booking_refund_outbox(payment)
+    # Create audit record
+    BookingCancellation.objects.get_or_create(
+        booking=booking,
+        defaults={
+            "initiator_type": initiator_type,
+            "user": user,
+            "reason": reason,
+            "refund_eligible": True,
+            "refund_amount": refund_amount,
+        },
+    )
+
+    from bookings.outbox import create_booking_refund_outbox
+    from bookings.refund_services import create_cancellation_refund
+
+    refund = create_cancellation_refund(payment=payment, amount=refund_amount)
+    create_booking_refund_outbox(payment, refund=refund)
     return booking
 
 

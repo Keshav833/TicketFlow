@@ -108,6 +108,25 @@ def check_in_ticket(verification_token):
 
     booking = ticket.booking_item.booking
 
+    # Prevent duplicate or cancelled ticket check-ins.
+    if ticket.status == Ticket.Status.USED:
+        logger.warning(
+            "Duplicate check-in attempt for ticket %s",
+            ticket.ticket_number,
+        )
+        raise TicketCheckInConflict(
+            "Ticket has already been used."
+        )
+
+    if ticket.status == Ticket.Status.CANCELLED:
+        logger.warning(
+            "Check-in rejected: ticket %s is cancelled",
+            ticket.ticket_number,
+        )
+        raise TicketCheckInConflict(
+            "Ticket has been cancelled."
+        )
+
     # Verify booking status.
     if booking.status != Booking.Status.CONFIRMED:
         logger.warning(
@@ -131,25 +150,6 @@ def check_in_ticket(verification_token):
         )
         raise TicketCheckInConflict(
             "Payment has not been completed."
-        )
-
-    # Prevent duplicate check-ins.
-    if ticket.status == Ticket.Status.USED:
-        logger.warning(
-            "Duplicate check-in attempt for ticket %s",
-            ticket.ticket_number,
-        )
-        raise TicketCheckInConflict(
-            "Ticket has already been used."
-        )
-
-    if ticket.status == Ticket.Status.CANCELLED:
-        logger.warning(
-            "Check-in rejected: ticket %s is cancelled",
-            ticket.ticket_number,
-        )
-        raise TicketCheckInConflict(
-            "Ticket has been cancelled."
         )
 
     # Mark ticket as used.

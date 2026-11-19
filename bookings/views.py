@@ -10,6 +10,7 @@ from config.throttling import SafeScopedRateThrottle
 
 from .serializers import (
     BookingSerializer,
+    CancelBookingRequestSerializer,
     CreateHoldSerializer,
     CustomerTicketSerializer,
     TicketCheckInSerializer,
@@ -18,6 +19,7 @@ from .serializers import (
     VerifyPaymentRequestSerializer,
     VerifyPaymentResponseSerializer,
     RazorpayWebhookResponseSerializer,
+    PaymentReconciliationAttemptSerializer,
 )
 from .ticket_services import (
     build_ticket_download,
@@ -25,7 +27,7 @@ from .ticket_services import (
     customer_visible_tickets,
     read_stored_qr,
 )
-from .models import Booking, Ticket
+from .models import Booking, Payment, Ticket
 
 from .webhook_services import process_razorpay_webhook
 
@@ -35,6 +37,7 @@ from .payment_services import (
 
       )
 from .services import cancel_booking, create_seat_hold
+from .reconciliation_services import reconcile_payment
 
 
 class BookingListView(generics.ListAPIView):
@@ -54,6 +57,7 @@ class BookingListView(generics.ListAPIView):
                 "items__event_seat__seat",
                 "items__event_seat__event",
                 "holds",
+                "refunds",
             )
             .order_by("-created_at")
         )
@@ -72,6 +76,7 @@ class BookingDetailView(generics.RetrieveAPIView):
                 "items__event_seat__seat",
                 "items__event_seat__event",
                 "holds",
+                "refunds",
             )
         )
 
@@ -106,11 +111,24 @@ class CreateHoldView(APIView):
         )
 
 
+@extend_schema(
+    request=CancelBookingRequestSerializer,
+    responses={
+        200: BookingSerializer,
+    },
+    description="Cancel an eligible held, pending, or confirmed booking according to the cancellation policy.",
+    tags=["Bookings"],
+)
 class CancelBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [SafeScopedRateThrottle]
+    throttle_scope = "booking_cancel"
 
     def post(self, request, pk):
-        booking = cancel_booking(user=request.user, booking_id=pk)
+        serializer = CancelBookingRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reason = serializer.validated_data.get("reason", "")
+        booking = cancel_booking(user=request.user, booking_id=pk, reason=reason)
         return Response(BookingSerializer(booking).data)
 
 
@@ -164,6 +182,29 @@ class VerifyPaymentView(APIView):
         )
 
         return Response(result, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    responses={200: PaymentReconciliationAttemptSerializer},
+    description="Staff-only authoritative Razorpay reconciliation; it cannot force-confirm a booking.",
+    tags=["Payments"],
+)
+class StaffPaymentReconcileView(APIView):
+    permission_classes = [IsAdminUser]
+    throttle_classes = [SafeScopedRateThrottle]
+    throttle_scope = "payment_reconcile"
+
+    def post(self, request, pk):
+        payment = Payment.objects.filter(pk=pk).first()
+        if payment is None:
+            return Response({"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND)
+        reconcile_payment(
+            payment_id=payment.id,
+            source="staff",
+            initiated_by=request.user,
+        )
+        attempt = payment.reconciliation_attempts.order_by("-id").first()
+        return Response(PaymentReconciliationAttemptSerializer(attempt).data)
 
 @extend_schema(
     request={

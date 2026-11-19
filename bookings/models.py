@@ -100,6 +100,45 @@ class ConfirmedSeat(models.Model):
     def __str__(self):
         return f"Confirmed allocation for event seat {self.event_seat_id}"
 
+
+class BookingCancellation(models.Model):
+    """Auditable record for customer- or staff-initiated booking cancellations."""
+
+    class Initiator(models.TextChoices):
+        CUSTOMER = "customer", "Customer"
+        STAFF = "staff", "Staff"
+        SYSTEM = "system", "System"
+        EVENT_CANCELLED = "event_cancelled", "Event Cancelled"
+
+    booking = models.OneToOneField(
+        Booking,
+        on_delete=models.PROTECT,
+        related_name="cancellation",
+    )
+    initiator_type = models.CharField(
+        max_length=30,
+        choices=Initiator.choices,
+        default=Initiator.CUSTOMER,
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="booking_cancellations",
+    )
+    reason = models.TextField(blank=True, default="")
+    refund_eligible = models.BooleanField(default=False)
+    refund_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Cancellation for Booking #{self.booking_id} ({self.initiator_type})"
+
     
 
 class Hold(models.Model):
@@ -220,6 +259,102 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment #{self.pk} - {self.status}"
+
+
+class Refund(models.Model):
+    """A provider refund request and its independently verified outcome."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SUBMITTED = "submitted", "Submitted"
+        PROCESSED = "processed", "Processed"
+        FAILED = "failed", "Failed"
+
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.PROTECT,
+        related_name="refunds",
+    )
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.PROTECT,
+        related_name="refunds",
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default="INR")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    idempotency_key = models.CharField(max_length=255, unique=True)
+    provider_refund_id = models.CharField(max_length=255, blank=True, db_index=True)
+    provider_status = models.CharField(max_length=64, blank=True)
+    provider_created_at = models.DateTimeField(null=True, blank=True)
+    provider_metadata = models.JSONField(default=dict, blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    failed_at = models.DateTimeField(null=True, blank=True)
+    failure_reason = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(amount__gt=0),
+                name="refund_amount_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["payment", "status"]),
+            models.Index(fields=["booking", "status"]),
+        ]
+
+    def __str__(self):
+        return f"Refund #{self.pk} - {self.status}"
+
+
+class PaymentReconciliationAttempt(models.Model):
+    """Audit trail for automatic and staff-requested provider reconciliation."""
+
+    class Source(models.TextChoices):
+        PERIODIC = "periodic", "Periodic"
+        STAFF = "staff", "Staff"
+
+    class Outcome(models.TextChoices):
+        CONFIRMED = "confirmed", "Confirmed"
+        FAILED = "failed", "Failed"
+        REFUND_QUEUED = "refund_queued", "Refund Queued"
+        NO_CHANGE = "no_change", "No Change"
+        UNCERTAIN = "uncertain", "Uncertain"
+        ERROR = "error", "Error"
+
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.PROTECT,
+        related_name="reconciliation_attempts",
+    )
+    initiated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payment_reconciliation_attempts",
+    )
+    source = models.CharField(max_length=20, choices=Source.choices)
+    outcome = models.CharField(max_length=20, choices=Outcome.choices)
+    provider_snapshot = models.JSONField(default=dict, blank=True)
+    detail = models.CharField(max_length=500, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["payment", "created_at"])]
+
+    def __str__(self):
+        return f"Reconciliation {self.payment_id}: {self.outcome}"
 
 
 

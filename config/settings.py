@@ -218,7 +218,9 @@ REST_FRAMEWORK = {
         "hold_create": os.getenv("THROTTLE_HOLD_CREATE_RATE", "10/minute"),
         "payment_order": os.getenv("THROTTLE_PAYMENT_ORDER_RATE", "5/minute"),
         "payment_verify": os.getenv("THROTTLE_PAYMENT_VERIFY_RATE", "10/minute"),
+        "payment_reconcile": os.getenv("THROTTLE_PAYMENT_RECONCILE_RATE", "20/minute"),
         "ticket_checkin": os.getenv("THROTTLE_TICKET_CHECKIN_RATE", "10/minute"),
+        "booking_cancel": os.getenv("THROTTLE_BOOKING_CANCEL_RATE", "10/minute"),
         "admin_dashboard": os.getenv("THROTTLE_ADMIN_DASHBOARD_RATE", "60/minute"),
     },
     # Do not trust client-supplied X-Forwarded-For unless a trusted proxy count
@@ -393,3 +395,8 @@ LOGGING = {
         "level": "INFO",
     },
 }
+
+# Cancellation Policy
+TICKETFLOW_CANCELLATION_CUTOFF_HOURS = int(
+    os.getenv("TICKETFLOW_CANCELLATION_CUTOFF_HOURS", "2")
+)

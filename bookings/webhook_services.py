@@ -8,7 +8,7 @@ from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 from bookings.services import reserve_confirmed_seats, transition_booking
-from bookings.models import Booking, Payment, Hold, ProcessedWebhookEvent
+from bookings.models import Booking, Payment, Hold, ProcessedWebhookEvent, Refund
 from bookings.outbox import (
     create_booking_fulfillment_outbox,
     create_late_payment_refund_outbox,
@@ -33,6 +33,34 @@ def verify_webhook_signature(*, payload, signature):
 
     if not hmac.compare_digest(expected_signature, signature):
         raise ValidationError("Invalid webhook signature.")
+
+
+def _process_refund_webhook(*, event, event_id, event_type):
+    entity = event.get("payload", {}).get("refund", {}).get("entity", {})
+    provider_refund_id = entity.get("id")
+    if not provider_refund_id:
+        raise ValidationError("Webhook is missing refund identifiers.")
+
+    with transaction.atomic():
+        if ProcessedWebhookEvent.objects.filter(event_id=event_id).exists():
+            return {"detail": "Duplicate event ignored."}
+        refund = Refund.objects.select_for_update().filter(
+            provider_refund_id=provider_refund_id,
+            payment__provider_payment_id=entity.get("payment_id", ""),
+        ).first()
+        if refund is None:
+            # A provider event may race the task's response write.  Do not
+            # create an unbounded refund from a webhook; reconciliation can
+            # safely match the already-created local request later.
+            raise ValidationError("No matching refund request found.")
+        if entity.get("amount") != int(refund.amount * 100) or entity.get("currency") != refund.currency:
+            raise ValidationError("Webhook refund amount or currency does not match.")
+
+        from bookings.refund_services import apply_provider_refund_update
+
+        apply_provider_refund_update(refund_id=refund.id, entity=entity)
+        ProcessedWebhookEvent.objects.create(event_id=event_id, event_type=event_type)
+    return {"detail": "Refund webhook processed successfully."}
 
 
 
@@ -71,6 +99,13 @@ def process_razorpay_webhook(*, payload, signature, event_id):
         "Processing Razorpay webhook event: %s",
         event_type,
     )
+
+    if event_type in ("refund.created", "refund.processed", "refund.failed"):
+        return _process_refund_webhook(
+            event=event,
+            event_id=event_id,
+            event_type=event_type,
+        )
 
     if event_type not in ("payment.captured", "payment.failed"):
         logger.info(
@@ -169,7 +204,10 @@ def process_razorpay_webhook(*, payload, signature, event_id):
                             "updated_at",
                         ]
                     )
-                    create_late_payment_refund_outbox(payment)
+                    from bookings.refund_services import create_late_payment_refund
+
+                    refund = create_late_payment_refund(payment=payment)
+                    create_late_payment_refund_outbox(payment, refund=refund)
 
                 ProcessedWebhookEvent.objects.create(
                     event_id=event_id,

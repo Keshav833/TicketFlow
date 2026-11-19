@@ -6,7 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from bookings.email_services import send_booking_confirmation_email
-from bookings.models import Booking, BookingEmailDelivery, OutboxEvent, Payment
+from bookings.models import Booking, BookingEmailDelivery, OutboxEvent, Payment, Refund
 from bookings.outbox import (
     BOOKING_REFUND_EVENT,
     BOOKING_FULFILLMENT_EVENT,
@@ -116,70 +116,102 @@ def fulfill_confirmed_booking(self, outbox_event_id):
 
 @shared_task(bind=True, max_retries=6, retry_backoff=60)
 def refund_late_payment(self, outbox_event_id):
-    """Refund a captured payment whose booking expired before confirmation."""
+    """Submit one queued refund request without assuming provider success."""
     event = None
     try:
         with transaction.atomic():
             event = OutboxEvent.objects.select_for_update().get(pk=outbox_event_id)
             if event.status == OutboxEvent.Status.COMPLETED:
                 return {"status": "already_completed"}
+            refund_id = event.payload.get("refund_id")
+            if not refund_id:
+                payment = Payment.objects.select_for_update().get(pk=event.aggregate_id)
+                from bookings.refund_services import create_late_payment_refund
 
-            payment = Payment.objects.select_for_update().get(pk=event.aggregate_id)
-            if payment.status == Payment.Status.REFUNDED:
-                mark_outbox_event_completed(event)
-                return {"status": "already_refunded", "payment_id": payment.id}
-            if payment.status != Payment.Status.REFUND_PENDING:
-                mark_outbox_event_completed(event, error="payment not awaiting refund")
-                return {"status": "skipped", "payment_id": payment.id}
-            if not payment.provider_payment_id:
-                raise RuntimeError("late payment is missing its provider payment ID")
+                refund = create_late_payment_refund(payment=payment)
+                event.payload = {"payment_id": payment.id, "refund_id": refund.id}
+                event.save(update_fields=["payload", "updated_at"])
+                refund_id = refund.id
 
-            payment_id = payment.id
-            provider_payment_id = payment.provider_payment_id
-            amount = int(payment.amount * 100)
-
-        from bookings.payment_services import get_razorpay_client
-
-        refund = get_razorpay_client().payment.refund(
-            provider_payment_id,
-            {
-                "amount": amount,
-                "notes": {"reason": "booking_hold_expired"},
-            },
+        from bookings.refund_services import (
+            RefundProviderPermanentError,
+            reconcile_refund,
+            submit_refund,
         )
+
+        refund = Refund.objects.get(pk=refund_id)
+        if refund.status == Refund.Status.PENDING:
+            refund = submit_refund(refund.id)
+        elif refund.status == Refund.Status.SUBMITTED:
+            refund = reconcile_refund(refund.id)
 
         with transaction.atomic():
             event = OutboxEvent.objects.select_for_update().get(pk=outbox_event_id)
-            payment = Payment.objects.select_for_update().select_related("booking").get(pk=payment_id)
-            if payment.status == Payment.Status.REFUNDED:
-                mark_outbox_event_completed(event)
-                return {"status": "already_refunded", "payment_id": payment.id}
-
-            payment.provider_refund_id = refund.get("id", "")
-            payment.status = Payment.Status.REFUNDED
-            payment.save(update_fields=["provider_refund_id", "status", "updated_at"])
-            booking = payment.booking
-            if booking.status == Booking.Status.REFUND_PENDING:
-                from bookings.services import transition_booking
-                from bookings.models import Ticket
-
-                transition_booking(
-                    booking=booking,
-                    new_status=Booking.Status.REFUNDED,
-                )
-                Ticket.objects.filter(
-                    booking_item__booking=booking,
-                    status=Ticket.Status.ISSUED,
-                ).update(status=Ticket.Status.CANCELLED)
-            mark_outbox_event_completed(event)
-        logger.warning("Refunded late payment %s", payment_id)
-        return {"status": "refunded", "payment_id": payment_id}
+            mark_outbox_event_completed(
+                event,
+                error="provider confirmation pending" if refund.status == Refund.Status.SUBMITTED else None,
+            )
+        return {"status": refund.status, "refund_id": refund.id}
+    except RefundProviderPermanentError as exc:
+        logger.warning("Refund event %s failed permanently: %s", outbox_event_id, exc)
+        if event is not None:
+            event = OutboxEvent.objects.get(pk=outbox_event_id)
+            mark_outbox_event_completed(event, error=str(exc))
+        return {"status": "failed", "reason": str(exc)}
     except Exception as exc:
         logger.exception("Late-payment refund failed for outbox event %s", outbox_event_id)
         if event is not None:
             event = OutboxEvent.objects.get(pk=outbox_event_id)
             mark_outbox_event_failed(event, error=str(exc), retry_minutes=2)
         raise
+
+
+@shared_task(bind=True, max_retries=3, retry_backoff=60)
+def reconcile_submitted_refunds(self):
+    """Reconcile provider-confirmation gaps without resubmitting refunds."""
+    threshold = timezone.now() - timedelta(minutes=1)
+    refund_ids = list(
+        Refund.objects.filter(
+            status=Refund.Status.SUBMITTED,
+            submitted_at__lte=threshold,
+        )
+        .order_by("submitted_at")
+        .values_list("id", flat=True)[:100]
+    )
+    from bookings.refund_services import reconcile_refund
+
+    reconciled = 0
+    for refund_id in refund_ids:
+        try:
+            reconcile_refund(refund_id)
+            reconciled += 1
+        except Exception:
+            logger.exception("Refund reconciliation failed for refund %s", refund_id)
+    return {"checked": len(refund_ids), "reconciled": reconciled}
+
+
+@shared_task(bind=True, max_retries=3, retry_backoff=60)
+def reconcile_uncertain_payments(self):
+    """Periodically reconcile creating/pending Razorpay payment attempts."""
+    threshold = timezone.now() - timedelta(minutes=1)
+    payment_ids = list(
+        Payment.objects.filter(
+            status__in=[Payment.Status.CREATING, Payment.Status.PENDING],
+            updated_at__lte=threshold,
+        )
+        .order_by("updated_at")
+        .values_list("id", flat=True)[:100]
+    )
+    from bookings.reconciliation_services import reconcile_payment
+
+    outcomes = {"checked": len(payment_ids), "errors": 0}
+    for payment_id in payment_ids:
+        try:
+            reconcile_payment(payment_id=payment_id)
+        except Exception:
+            outcomes["errors"] += 1
+            logger.exception("Payment reconciliation failed for payment %s", payment_id)
+    return outcomes
 
 
 @shared_task(

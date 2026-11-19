@@ -46,6 +46,28 @@ export type BookingStatus =
   | 'cancelled'
   | 'refunded'
 
+export interface BookingCancellation {
+  initiator_type: 'customer' | 'staff' | 'system' | 'event_cancelled'
+  reason: string
+  refund_eligible: boolean
+  refund_amount: string
+  created_at: string
+}
+
+export type RefundStatus = 'pending' | 'submitted' | 'processed' | 'failed'
+
+export interface Refund {
+  id: number
+  amount: string
+  currency: string
+  status: RefundStatus
+  provider_status: string
+  requested_at: string
+  submitted_at: string | null
+  processed_at: string | null
+  failed_at: string | null
+}
+
 export interface Booking {
   id: number
   status: BookingStatus
@@ -54,6 +76,8 @@ export interface Booking {
   updated_at: string
   hold_expires_at: string | null
   items: BookingItem[]
+  cancellation?: BookingCancellation | null
+  refunds: Refund[]
 }
 
 export type TicketStatus = 'issued' | 'used' | 'cancelled'

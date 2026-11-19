@@ -7,6 +7,7 @@ from .views import (
     CreateHoldView,
     CreatePaymentOrderView,
     VerifyPaymentView,
+    StaffPaymentReconcileView,
     RazorpayWebhookView,
     TicketCheckInView,
 )
@@ -38,6 +39,11 @@ urlpatterns = [
     "payments/verify/",
     VerifyPaymentView.as_view(),
     name="verify-payment",
+    ),
+    path(
+    "payments/<int:pk>/reconcile/",
+    StaffPaymentReconcileView.as_view(),
+    name="payment-reconcile",
     ),
     path(
     "tickets/check-in/",

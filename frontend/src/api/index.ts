@@ -50,8 +50,8 @@ export const api = {
     apiClient.get<Paginated<Booking>>('/bookings/', config),
   booking: (id: number, config?: AxiosRequestConfig) =>
     apiClient.get<Booking>(`/bookings/${id}/`, config),
-  cancelBooking: (id: number) =>
-    apiClient.post<Booking>(`/bookings/${id}/cancel/`),
+  cancelBooking: (id: number, reason = '') =>
+    apiClient.post<Booking>(`/bookings/${id}/cancel/`, { reason }),
   createPaymentOrder: (bookingId: number) =>
     apiClient.post<PaymentOrder>('/bookings/payments/create-order/', {
       booking_id: bookingId,

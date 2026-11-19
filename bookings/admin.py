@@ -7,7 +7,9 @@ from .models import (
     Hold,
     OutboxEvent,
     Payment,
+    PaymentReconciliationAttempt,
     ProcessedWebhookEvent,
+    Refund,
     Ticket,
 )
 
@@ -53,6 +55,12 @@ class PaymentInline(ReadOnlyInline):
     readonly_fields = fields
 
 
+class RefundInline(ReadOnlyInline):
+    model = Refund
+    fields = ("amount", "currency", "status", "provider_refund_id", "requested_at", "processed_at")
+    readonly_fields = fields
+
+
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
     list_display = (
@@ -73,7 +81,7 @@ class BookingAdmin(admin.ModelAdmin):
     )
     ordering = ("-created_at",)
     date_hierarchy = "created_at"
-    inlines = (BookingItemInline, PaymentInline)
+    inlines = (BookingItemInline, PaymentInline, RefundInline)
     readonly_fields = (
         "user",
         "status",
@@ -200,6 +208,32 @@ class PaymentAdmin(admin.ModelAdmin):
     readonly_fields = tuple(field.name for field in Payment._meta.fields)
     list_select_related = ("booking", "booking__user")
     date_hierarchy = "created_at"
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(PaymentReconciliationAttempt)
+class PaymentReconciliationAttemptAdmin(admin.ModelAdmin):
+    list_display = ("id", "payment", "source", "outcome", "initiated_by", "created_at")
+    list_filter = ("source", "outcome", "created_at")
+    search_fields = ("payment__id", "payment__provider_order_id", "payment__provider_payment_id")
+    readonly_fields = tuple(field.name for field in PaymentReconciliationAttempt._meta.fields)
+    list_select_related = ("payment", "initiated_by")
+    date_hierarchy = "created_at"
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(Refund)
+class RefundAdmin(admin.ModelAdmin):
+    list_display = ("id", "booking", "payment", "amount", "currency", "status", "provider_refund_id", "requested_at")
+    list_filter = ("status", "currency", "requested_at")
+    search_fields = ("booking__id", "payment__provider_payment_id", "provider_refund_id", "idempotency_key")
+    readonly_fields = tuple(field.name for field in Refund._meta.fields)
+    list_select_related = ("booking", "payment")
+    date_hierarchy = "requested_at"
 
     def has_add_permission(self, request):
         return False

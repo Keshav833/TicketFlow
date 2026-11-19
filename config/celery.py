@@ -25,6 +25,14 @@ app.conf.beat_schedule = {
         "task": "bookings.tasks.recover_stale_email_deliveries",
         "schedule": 300.0,
     },
+    "reconcile-submitted-refunds": {
+        "task": "bookings.tasks.reconcile_submitted_refunds",
+        "schedule": 300.0,
+    },
+    "reconcile-uncertain-payments": {
+        "task": "bookings.tasks.reconcile_uncertain_payments",
+        "schedule": 300.0,
+    },
 }
 
 app.conf.task_default_queue = "default"

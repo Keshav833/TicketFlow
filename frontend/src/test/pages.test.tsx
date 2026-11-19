@@ -7,7 +7,7 @@ import type { Booking, EventRecord, EventSeat, Paginated } from '../types'
 import { AuthProvider } from '../auth/AuthProvider'
 import { App } from '../App'
 import { AuthPage } from '../pages/AuthPage'
-import { BookingHistoryPage, CheckoutPage } from '../pages/BookingPages'
+import { BookingDetailsPage, BookingHistoryPage, CheckoutPage } from '../pages/BookingPages'
 import { EventsPage } from '../pages/EventsPage'
 import { HomePage } from '../pages/HomePage'
 import { SeatSelectionPage } from '../pages/SeatSelectionPage'
@@ -25,6 +25,7 @@ vi.mock('../api', () => ({
     createHold: vi.fn(),
     bookings: vi.fn(),
     booking: vi.fn(),
+    cancelBooking: vi.fn(),
     createPaymentOrder: vi.fn(),
     verifyPayment: vi.fn(),
   },
@@ -47,6 +48,7 @@ const sampleBooking = (expiresAt = new Date(Date.now() + 300_000).toISOString())
   created_at: '2027-03-01T10:00:00Z',
   updated_at: '2027-03-01T10:00:00Z',
   hold_expires_at: expiresAt,
+  refunds: [],
   items: [{
     id: 7,
     event_seat: 11,
@@ -333,5 +335,48 @@ describe('TicketFlow pages', () => {
       '/my-bookings',
     )
     expect(await screen.findByRole('heading', { name: 'Sign in to TicketFlow' })).toBeInTheDocument()
+  })
+
+  it('displays cancellation policy and cancels booking on confirmation', async () => {
+    const confirmedBooking = { ...sampleBooking(), status: 'confirmed' as const }
+    vi.mocked(api.booking).mockResolvedValue({ data: confirmedBooking } as never)
+    vi.mocked(api.event).mockResolvedValue({ data: sampleEvent } as never)
+    vi.mocked(api.cancelBooking).mockResolvedValue({
+      data: {
+        ...confirmedBooking,
+        status: 'refund_pending',
+        cancellation: {
+          initiator_type: 'customer',
+          reason: '',
+          refund_eligible: true,
+          refund_amount: '500.00',
+          created_at: new Date().toISOString(),
+        },
+      },
+    } as never)
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/my-bookings/42']}>
+          <Routes>
+            <Route path="/my-bookings/:bookingId" element={<BookingDetailsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    )
+
+    expect(await screen.findByText('Cancellation & Refund Policy')).toBeInTheDocument()
+    expect(screen.getByText(/Free cancellation with full refund is available/i)).toBeInTheDocument()
+
+    const cancelBtn = screen.getByRole('button', { name: /cancel booking & request full refund/i })
+    await userEvent.click(cancelBtn)
+
+    expect(confirmSpy).toHaveBeenCalled()
+    expect(api.cancelBooking).toHaveBeenCalledWith(42)
+    expect(await screen.findByText(/Your refund of ₹500.00 is being processed/i)).toBeInTheDocument()
+
+    confirmSpy.mockRestore()
   })
 })

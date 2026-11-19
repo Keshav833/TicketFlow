@@ -41,7 +41,7 @@ def create_booking_fulfillment_outbox(booking):
     return event
 
 
-def create_late_payment_refund_outbox(payment):
+def create_late_payment_refund_outbox(payment, refund=None):
     """Queue exactly one refund for a capture received after hold expiry."""
     key = f"late_payment_refund:{payment.id}"
     event, created = OutboxEvent.objects.get_or_create(
@@ -50,14 +50,15 @@ def create_late_payment_refund_outbox(payment):
             "event_type": LATE_PAYMENT_REFUND_EVENT,
             "aggregate_id": payment.id,
             "status": OutboxEvent.Status.PENDING,
-            "payload": {"payment_id": payment.id},
+            "payload": {"payment_id": payment.id, "refund_id": getattr(refund, "id", None)},
             "available_at": timezone.now(),
         },
     )
     if not created and event.status == OutboxEvent.Status.PENDING:
+        event.payload = {"payment_id": payment.id, "refund_id": getattr(refund, "id", None)}
         event.available_at = timezone.now()
         event.last_error = ""
-        event.save(update_fields=["available_at", "last_error", "updated_at"])
+        event.save(update_fields=["payload", "available_at", "last_error", "updated_at"])
 
     if settings.CELERY_TASK_ALWAYS_EAGER:
         from bookings.tasks import dispatch_pending_outbox_events
@@ -67,18 +68,23 @@ def create_late_payment_refund_outbox(payment):
     return event
 
 
-def create_booking_refund_outbox(payment):
+def create_booking_refund_outbox(payment, refund=None):
     key = f"booking_refund:{payment.id}"
-    event, _ = OutboxEvent.objects.get_or_create(
+    event, created = OutboxEvent.objects.get_or_create(
         idempotency_key=key,
         defaults={
             "event_type": BOOKING_REFUND_EVENT,
             "aggregate_id": payment.id,
             "status": OutboxEvent.Status.PENDING,
-            "payload": {"payment_id": payment.id},
+            "payload": {"payment_id": payment.id, "refund_id": getattr(refund, "id", None)},
             "available_at": timezone.now(),
         },
     )
+    if not created and event.status == OutboxEvent.Status.PENDING:
+        event.payload = {"payment_id": payment.id, "refund_id": getattr(refund, "id", None)}
+        event.available_at = timezone.now()
+        event.last_error = ""
+        event.save(update_fields=["payload", "available_at", "last_error", "updated_at"])
     if settings.CELERY_TASK_ALWAYS_EAGER:
         from bookings.tasks import dispatch_pending_outbox_events
 

@@ -20709,3 +20709,71 @@ ConnectionError: Redis unavailable
 2026-11-17 00:52:28,002 | WARNING | django.request | Unauthorized: /api/tickets/21/qr/
 2026-11-17 00:52:28,003 | WARNING | django.request | Unauthorized: /api/tickets/21/download/
 2026-11-17 00:52:29,185 | WARNING | django.request | Not Found: /api/tickets/22/qr/
+2026-11-17 01:13:48,461 | WARNING | django.request | Bad Request: /api/bookings/1/cancel/
+2026-11-17 01:13:51,077 | WARNING | django.request | Bad Request: /api/bookings/3/cancel/
+2026-11-17 01:13:53,907 | WARNING | django.request | Bad Request: /api/bookings/5/cancel/
+2026-11-17 01:14:01,625 | WARNING | django.request | Unauthorized: /api/bookings/11/cancel/
+2026-11-17 01:14:41,183 | WARNING | django.request | Bad Request: /api/bookings/1/cancel/
+2026-11-17 01:14:43,626 | WARNING | django.request | Bad Request: /api/bookings/3/cancel/
+2026-11-17 01:14:46,365 | WARNING | django.request | Bad Request: /api/bookings/5/cancel/
+2026-11-17 01:14:52,635 | WARNING | bookings.ticket_services | Check-in rejected: booking 10 is not confirmed
+2026-11-17 01:14:54,120 | WARNING | django.request | Unauthorized: /api/bookings/11/cancel/
+2026-11-17 01:16:55,781 | WARNING | django.request | Bad Request: /api/bookings/1/cancel/
+2026-11-17 01:16:58,618 | WARNING | django.request | Bad Request: /api/bookings/3/cancel/
+2026-11-17 01:17:01,323 | WARNING | django.request | Bad Request: /api/bookings/5/cancel/
+2026-11-17 01:17:07,334 | WARNING | bookings.ticket_services | Check-in rejected: ticket TKT-10-10 is cancelled
+2026-11-17 01:17:08,578 | WARNING | django.request | Unauthorized: /api/bookings/11/cancel/
+2026-11-17 01:19:15,064 | INFO | bookings.ticket_services | Ticket TKT-CHECKIN-1 checked in successfully for booking 1
+2026-11-17 01:19:15,067 | WARNING | bookings.ticket_services | Duplicate check-in attempt for ticket TKT-CHECKIN-1
+2026-11-17 01:19:15,079 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:15,093 | INFO | bookings.ticket_services | Ticket TKT-CHECKIN-2 checked in successfully for booking 2
+2026-11-17 01:19:16,490 | INFO | bookings.ticket_services | Ticket TKT-API-3 checked in successfully for booking 3
+2026-11-17 01:19:16,493 | WARNING | bookings.ticket_services | Duplicate check-in attempt for ticket TKT-API-3
+2026-11-17 01:19:16,495 | WARNING | django.request | Conflict: /api/bookings/tickets/check-in/
+2026-11-17 01:19:16,512 | WARNING | django.request | Bad Request: /api/bookings/tickets/check-in/
+2026-11-17 01:19:16,516 | WARNING | django.request | Forbidden: /api/bookings/tickets/check-in/
+2026-11-17 01:19:16,530 | INFO | bookings.ticket_services | Ticket TKT-API-4 checked in successfully for booking 4
+2026-11-17 01:19:16,535 | WARNING | django.request | Unauthorized: /api/bookings/tickets/check-in/
+2026-11-17 01:19:16,547 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:16,548 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,362 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:17,363 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,367 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:17,368 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,372 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:17,373 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,377 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:17,383 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,387 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:17,388 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,392 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:17,393 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,396 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:17,397 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,400 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:17,400 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,405 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:17,406 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,409 | WARNING | bookings.ticket_services | Check-in attempted with an unknown ticket token
+2026-11-17 01:19:17,410 | WARNING | django.request | Not Found: /api/bookings/tickets/check-in/
+2026-11-17 01:19:17,411 | WARNING | django.request | Too Many Requests: /api/bookings/tickets/check-in/
+2026-11-17 01:19:20,009 | WARNING | django.request | Not Found: /api/tickets/7/
+2026-11-17 01:19:20,018 | WARNING | django.request | Not Found: /api/tickets/8/
+2026-11-17 01:19:20,026 | WARNING | django.request | Not Found: /api/tickets/9/
+2026-11-17 01:19:21,306 | WARNING | django.request | Conflict: /api/tickets/10/qr/
+2026-11-17 01:19:21,314 | WARNING | django.request | Conflict: /api/tickets/10/download/
+2026-11-17 01:19:24,219 | WARNING | django.request | Not Found: /api/tickets/12/
+2026-11-17 01:19:24,227 | WARNING | django.request | Not Found: /api/tickets/12/qr/
+2026-11-17 01:19:24,238 | WARNING | django.request | Not Found: /api/tickets/12/download/
+2026-11-17 01:19:28,284 | WARNING | django.request | Not Found: /api/tickets/15/
+2026-11-17 01:19:29,512 | WARNING | django.request | Not Found: /api/tickets/17/
+2026-11-17 01:19:30,759 | WARNING | django.request | Not Found: /api/tickets/18/qr/
+2026-11-17 01:19:32,030 | WARNING | django.request | Not Found: /api/tickets/19/
+2026-11-17 01:19:32,040 | WARNING | django.request | Not Found: /api/tickets/19/qr/
+2026-11-17 01:19:38,685 | WARNING | django.request | Unauthorized: /api/tickets/
+2026-11-17 01:19:38,686 | WARNING | django.request | Unauthorized: /api/tickets/25/
+2026-11-17 01:19:38,687 | WARNING | django.request | Unauthorized: /api/tickets/25/qr/
+2026-11-17 01:19:38,687 | WARNING | django.request | Unauthorized: /api/tickets/25/download/
+2026-11-17 01:19:39,982 | WARNING | django.request | Not Found: /api/tickets/26/qr/
+2026-11-17 01:19:42,189 | INFO | bookings.ticket_services | Ticket TKT-CONCURRENT-1 checked in successfully for booking 1
+2026-11-17 01:19:42,196 | WARNING | bookings.ticket_services | Duplicate check-in attempt for ticket TKT-CONCURRENT-1

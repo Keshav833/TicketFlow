@@ -1,6 +1,13 @@
 from rest_framework import serializers
 
-from .models import Booking, BookingItem, Ticket
+from .models import (
+    Booking,
+    BookingCancellation,
+    BookingItem,
+    PaymentReconciliationAttempt,
+    Refund,
+    Ticket,
+)
 
 from events.models import EventSeat
 
@@ -37,10 +44,58 @@ class BookingItemSerializer(serializers.ModelSerializer):
             "price",
         ]
 
+class BookingCancellationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BookingCancellation
+        fields = [
+            "initiator_type",
+            "reason",
+            "refund_eligible",
+            "refund_amount",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class CancelBookingRequestSerializer(serializers.Serializer):
+    reason = serializers.CharField(
+        max_length=500,
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+
+
+class RefundSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Refund
+        fields = [
+            "id",
+            "amount",
+            "currency",
+            "status",
+            "provider_status",
+            "requested_at",
+            "submitted_at",
+            "processed_at",
+            "failed_at",
+        ]
+        read_only_fields = fields
+
+
+class PaymentReconciliationAttemptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentReconciliationAttempt
+        fields = ["id", "payment", "source", "outcome", "detail", "created_at"]
+        read_only_fields = fields
+
+
 # Returns booking details with nested items
 class BookingSerializer(serializers.ModelSerializer):
     items = BookingItemSerializer(many=True, read_only=True)
     hold_expires_at = serializers.SerializerMethodField()
+    cancellation = BookingCancellationSerializer(read_only=True)
+    refunds = RefundSerializer(many=True, read_only=True)
 # read_only=True -  Prevents clients from changing fields through this serializer
 # many=True	   -    Serializes multiple items belonging to a booking
 
@@ -72,6 +127,8 @@ class BookingSerializer(serializers.ModelSerializer):
             "updated_at",
             "items",
             "hold_expires_at",
+            "cancellation",
+            "refunds",
         ]
         read_only_fields = fields
 
